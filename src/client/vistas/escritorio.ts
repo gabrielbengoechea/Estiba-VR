@@ -11,7 +11,7 @@ import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
 import { Reproductor } from '../clase/reproductor';
 import { iniciarXR } from './xr';
-import { comandoTraer, esLinkLocal, factorSuavizado, idFichaAlternada, teclaAComando, urlAlumno } from './controlesDocente';
+import { comandoTraer, esLinkLocal, factorSuavizado, idFichaAlternada, mirenAcaTrasClic, teclaAComando, urlAlumno } from './controlesDocente';
 
 export type ModoEscritorio = 'proyector' | 'docente';
 
@@ -181,7 +181,7 @@ export class VistaEscritorio {
     if (this.modo === 'docente') {
       const res = nombre(e.resaltado);
       if (res) lineas.push(`Resaltado: ${res}`);
-      lineas.push('← → cambian de paso · clic resalta · M + clic: «miren acá» · T: traer a los alumnos · F: ficha');
+      lineas.push('← → cambian de paso · clic resalta · M + clic: «miren acá» (otra vez o Esc: apagar) · T: traer · R: recentrar · Espacio: animación · F: ficha');
     }
     this.hud.replaceChildren(...lineas.map((l, i) => {
       const d = document.createElement('div');
@@ -242,7 +242,8 @@ export class VistaEscritorio {
         this.conexion.enviar(comandoTraer([pos.x, pos.y, pos.z], [dir.x, dir.y, dir.z]));
         return;
       }
-      const c = teclaAComando(ev.key);
+      const e = this.estado;
+      const c = teclaAComando(ev.key, e?.clase.pasos[e.paso]?.animacion);
       if (c) {
         ev.preventDefault();
         if (!ev.repeat) this.conexion.enviar(c);
@@ -266,7 +267,9 @@ export class VistaEscritorio {
     this.rayo.setFromCamera(ndc, this.camara);
     const golpe = this.rayo.intersectObjects(this.escena.children, true)[0];
     if (this.teclaM) {
-      if (golpe) this.conexion.enviar({ t: 'mirenAca', pos: [golpe.point.x, golpe.point.y, golpe.point.z] });
+      const nuevo: Vec3 | null = golpe ? [golpe.point.x, golpe.point.y, golpe.point.z] : null;
+      const pos = mirenAcaTrasClic(this.estado?.mirenAca ?? null, nuevo);
+      if (pos || this.estado?.mirenAca) this.conexion.enviar({ t: 'mirenAca', pos });
       return;
     }
     // Un clic sobre un módulo lo resalta; sobre el vacío (agua o suelo) quita el resaltado.

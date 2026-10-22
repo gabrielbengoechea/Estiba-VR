@@ -17,6 +17,14 @@ describe('botones', () => {
   });
 });
 
+describe('«Miren acá» como interruptor', () => {
+  it('con un aro activo, el botón lo apaga; sin aro, arma el siguiente gatillo', () => {
+    expect(accionDeBoton(1, { ...ctx, mirenAcaActivo: true })).toEqual({ tipo: 'comando', c: { t: 'mirenAca', pos: null } });
+    expect(accionDeBoton(1, { ...ctx, mirenAcaActivo: false })).toEqual({ tipo: 'armarMirenAca' });
+    expect(accionDeBoton(1, ctx)).toEqual({ tipo: 'armarMirenAca' });
+  });
+});
+
 describe('accionDeBoton', () => {
   it('0 trae a todos a la cabeza del docente', () => {
     expect(accionDeBoton(0, ctx)).toEqual({ tipo: 'comando', c: { t: 'traer', pos: [10, 1.7, 5], mira: [10, 1.7, -5] } });

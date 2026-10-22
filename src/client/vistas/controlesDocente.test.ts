@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { comandoTraer, esLinkLocal, factorSuavizado, guinadaHacia, idFichaAlternada, teclaAComando, urlAlumno } from './controlesDocente';
+import { comandoTraer, mirenAcaTrasClic, esLinkLocal, factorSuavizado, guinadaHacia, idFichaAlternada, teclaAComando, urlAlumno } from './controlesDocente';
 
 describe('teclaAComando', () => {
   it('las flechas pasan de paso', () => {
     expect(teclaAComando('ArrowRight')).toEqual({ t: 'siguiente' });
     expect(teclaAComando('ArrowLeft')).toEqual({ t: 'anterior' });
+  });
+  it('R recentra a todos', () => {
+    expect(teclaAComando('r')).toEqual({ t: 'recentrar' });
+    expect(teclaAComando('R')).toEqual({ t: 'recentrar' });
+  });
+  it('Espacio reproduce la animación del paso, y sin animación no hace nada', () => {
+    expect(teclaAComando(' ', 'descarga-ciclo')).toEqual({ t: 'animar', id: 'descarga-ciclo' });
+    expect(teclaAComando(' ')).toBeNull();
+    expect(teclaAComando(' ', undefined)).toBeNull();
+  });
+  it('Escape apaga «Miren acá»', () => {
+    expect(teclaAComando('Escape')).toEqual({ t: 'mirenAca', pos: null });
   });
   it('otras teclas no hacen nada', () => {
     expect(teclaAComando('m')).toBeNull();
@@ -81,5 +93,21 @@ describe('idFichaAlternada', () => {
   });
   it('sin ficha en el paso no abre nada', () => {
     expect(idFichaAlternada(null, undefined)).toBeNull();
+  });
+});
+
+describe('mirenAcaTrasClic', () => {
+  it('sin aro activo, M + clic marca el punto', () => {
+    expect(mirenAcaTrasClic(null, [10, 0, 20])).toEqual([10, 0, 20]);
+  });
+  it('con aro activo, M + clic en otro lado lo mueve', () => {
+    expect(mirenAcaTrasClic([10, 0, 20], [100, 0, 20])).toEqual([100, 0, 20]);
+  });
+  it('con aro activo, M + clic en el mismo punto lo apaga', () => {
+    expect(mirenAcaTrasClic([10, 0, 20], [11, 0.5, 20.5])).toBeNull();
+  });
+  it('M + clic sin punto (vacío) apaga el aro', () => {
+    expect(mirenAcaTrasClic([10, 0, 20], null)).toBeNull();
+    expect(mirenAcaTrasClic(null, null)).toBeNull();
   });
 });

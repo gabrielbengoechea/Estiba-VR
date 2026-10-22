@@ -4,11 +4,27 @@ import type { Vec3 } from '../../shared/tipos';
 /** Altura de los ojos de un alumno parado, en metros. */
 export const ALTURA_OJOS = 1.7;
 
-/** Flechas del teclado -> paso siguiente o anterior. Cualquier otra tecla no hace nada. */
-export function teclaAComando(tecla: string): Comando | null {
+/**
+ * Teclas del docente en la laptop: flechas = paso siguiente o anterior, R = recentrar a todos, Espacio = animación del
+ * paso actual (`animacionPaso`; si no tiene, nada), Escape = apagar «Miren acá». Cualquier otra tecla no hace nada.
+ */
+export function teclaAComando(tecla: string, animacionPaso?: string): Comando | null {
+  if (tecla === 'r' || tecla === 'R') return { t: 'recentrar' };
+  if (tecla === ' ') return animacionPaso ? { t: 'animar', id: animacionPaso } : null;
+  if (tecla === 'Escape') return { t: 'mirenAca', pos: null };
   if (tecla === 'ArrowRight' || tecla === 'ArrowDown' || tecla === 'PageDown') return { t: 'siguiente' };
   if (tecla === 'ArrowLeft' || tecla === 'ArrowUp' || tecla === 'PageUp') return { t: 'anterior' };
   return null;
+}
+
+/** Si el clic de «Miren acá» cae a menos de esto (m) del aro activo, se interpreta como apagarlo. */
+export const RADIO_MISMO_PUNTO = 5;
+
+/** Punto que manda «M + clic»: el nuevo, o null (apagar) si no hay punto o ya hay un aro casi en el mismo lugar. */
+export function mirenAcaTrasClic(actual: Vec3 | null, nuevo: Vec3 | null): Vec3 | null {
+  if (!nuevo) return null;
+  if (actual && Math.hypot(actual[0] - nuevo[0], actual[1] - nuevo[1], actual[2] - nuevo[2]) < RADIO_MISMO_PUNTO) return null;
+  return nuevo;
 }
 
 /** «Traer»: los alumnos pasan a donde está la cámara, pero a la altura de unos ojos, mirando en su misma dirección. */

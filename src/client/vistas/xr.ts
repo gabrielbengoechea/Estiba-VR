@@ -85,9 +85,12 @@ export function iniciarXR(
     const cabeza = poseMundo(dolly.matrixWorld.elements, renderer.xr.getCamera().matrix.elements);
     const e = obtenerEstado();
     const act = accionDeBoton(indice, {
-      cabeza, animacion: e?.clase.pasos[e.paso]?.animacion, enAR: modoSesion === 'ar', arSoportado,
+      cabeza, animacion: e?.clase.pasos[e.paso]?.animacion, enAR: modoSesion === 'ar', arSoportado, mirenAcaActivo: !!e?.mirenAca,
     });
-    if (act?.tipo === 'comando') conexion.enviar(act.c);
+    if (act?.tipo === 'comando') {
+      conexion.enviar(act.c);
+      if (act.c.t === 'mirenAca') { armado = false; menu.ponerArmado(false); }
+    }
     else if (act?.tipo === 'armarMirenAca') { armado = !armado; menu.ponerArmado(armado); }
     else if (act?.tipo === 'alternarAR') void cambiarA(modoSesion === 'ar' ? 'vr' : 'ar');
   };

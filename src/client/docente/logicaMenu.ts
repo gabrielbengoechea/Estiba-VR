@@ -60,6 +60,8 @@ export interface ContextoMenu {
   enAR: boolean;
   /** El visor soporta immersive-ar; si no, el botón de la maqueta no hace nada. */
   arSoportado: boolean;
+  /** Hay un aro de «Miren acá» activo: volver a tocar el botón lo apaga. */
+  mirenAcaActivo?: boolean;
 }
 
 export function accionDeBoton(indice: number, ctx: ContextoMenu): AccionMenu {
@@ -67,7 +69,8 @@ export function accionDeBoton(indice: number, ctx: ContextoMenu): AccionMenu {
     case IND_TRAER:
       // En AR la cabeza está en el mundo real (frente a la mesa), no en la terminal.
       return ctx.enAR ? null : { tipo: 'comando', c: comandoTraer(ctx.cabeza.pos, ctx.cabeza.quat) };
-    case IND_MIREN_ACA: return { tipo: 'armarMirenAca' };
+    case IND_MIREN_ACA:
+      return ctx.mirenAcaActivo ? { tipo: 'comando', c: { t: 'mirenAca', pos: null } } : { tipo: 'armarMirenAca' };
     case IND_ANIMAR: return ctx.animacion ? { tipo: 'comando', c: { t: 'animar', id: ctx.animacion } } : null;
     case IND_RECENTRAR: return { tipo: 'comando', c: { t: 'recentrar' } };
     case IND_MAQUETA: return ctx.enAR || ctx.arSoportado ? { tipo: 'alternarAR' } : null;
