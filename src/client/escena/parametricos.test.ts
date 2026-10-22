@@ -23,3 +23,21 @@ describe('contarContenedores', () => {
     expect(n).toBe(contarContenedores(p));
   });
 });
+
+describe('huella y geometría coinciden', () => {
+  for (const m of [5, 10]) {
+    it(`muelle y vía con ${m} m por celda`, async () => {
+      const { catalogo } = await import('./catalogo');
+      for (const tipo of ['muelle', 'via'] as const) {
+        const obj = await catalogo[tipo].crear(undefined, m);
+        const caja = new THREE.Box3().setFromObject(obj);
+        const [c, f] = catalogo[tipo].huella(undefined, m);
+        expect(caja.max.x - caja.min.x).toBeCloseTo(c * m, 5);
+        const prof = caja.max.z - caja.min.z;
+        expect(prof).toBeLessThanOrEqual(f * m + 1e-6);
+        if (tipo === 'muelle') expect(prof).toBeCloseTo(f * m, 5);
+        else expect(prof).toBeGreaterThan((f - 1) * m);
+      }
+    });
+  }
+});

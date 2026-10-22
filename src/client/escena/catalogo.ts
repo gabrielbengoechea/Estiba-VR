@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { TipoModulo } from '../../shared/tipos';
-import { bloquePatio, muelle, via, puerta, deposito, M_POR_DEFECTO } from './parametricos';
+import { bloquePatio, muelle, via, puerta, deposito, M_POR_DEFECTO, MUELLE_FONDO, VIA_ANCHO } from './parametricos';
 
 export interface ParamEditable { clave: string; etiqueta: string; min: number; max: number; paso: number }
 
@@ -43,7 +43,7 @@ function blender(nombre: string, tipo: TipoModulo, ancho: number, fondo: number)
 export const catalogo: Record<TipoModulo, EntradaCatalogo> = {
   muelle: {
     nombre: 'Muelle',
-    huella: (p, m = M_POR_DEFECTO) => [p?.largo ?? 40, celdas(20, m)],
+    huella: (p, m = M_POR_DEFECTO) => [p?.largo ?? 40, celdas(MUELLE_FONDO, m)],
     crear: async (p, m) => muelle(p, m),
     paramsEditables: [{ clave: 'largo', etiqueta: 'Largo (celdas)', min: 5, max: 80, paso: 1 }],
   },
@@ -71,7 +71,7 @@ export const catalogo: Record<TipoModulo, EntradaCatalogo> = {
   },
   via: {
     nombre: 'Vía férrea',
-    huella: (p) => [p?.largo ?? 20, 1],
+    huella: (p, m = M_POR_DEFECTO) => [p?.largo ?? 20, celdas(VIA_ANCHO, m)],
     crear: async (p, m) => via(p, m),
     paramsEditables: [{ clave: 'largo', etiqueta: 'Largo (celdas)', min: 2, max: 60, paso: 1 }],
   },

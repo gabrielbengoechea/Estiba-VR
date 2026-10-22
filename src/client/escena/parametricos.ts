@@ -4,6 +4,10 @@ import { PALETA } from '../../shared/colores';
 /** Metros por celda que se asume si el llamador no pasa otro valor. */
 export const M_POR_DEFECTO = 10;
 
+/** Fondo del muelle y ancho del balasto, en metros: la huella del catálogo sale de estos valores. */
+export const MUELLE_FONDO = 20;
+export const VIA_ANCHO = 3.8;
+
 const PASO_FILA = 2.8;
 const PASO_BAHIA = 6.56;
 const LARGO_20 = 6.06;
@@ -136,12 +140,12 @@ export function bloquePatio(params: ParamsPatio = {}): THREE.Group {
 /** Muelle: losa de hormigón de `largo` celdas a lo largo de x; el agua queda en +z, la tierra en -z. */
 export function muelle(params: { largo?: number } = {}, m = M_POR_DEFECTO): THREE.Group {
   const largo = (params.largo ?? 40) * m;
-  const fondo = 2 * m;
+  const fondo = MUELLE_FONDO;
   const g = new THREE.Group();
   g.name = 'muelle';
   caja(g, '#6B7178', 0, -1.5, -fondo, largo, 1.5, fondo);
   caja(g, PALETA.amarillo, 0, 0, -0.6, largo, 0.04, 0.3); // línea de borde
-  caja(g, PALETA.oscuro, 0, -1.5, 0, largo, 1.5, 0.4); // defensa de cantil
+  caja(g, PALETA.oscuro, 0, -1.5, -0.4, largo, 1.5, 0.4); // defensa de cantil
   const bolardos: Caja[] = [];
   for (let x = 5; x < largo; x += 25) bolardos.push([x - 0.3, 0, -1.6, 0.6, 0.5, 0.6]);
   if (bolardos.length) g.add(instancias(PALETA.oscuro, bolardos));
@@ -153,9 +157,9 @@ export function via(params: { largo?: number } = {}, m = M_POR_DEFECTO): THREE.G
   const largo = (params.largo ?? 20) * m;
   const g = new THREE.Group();
   g.name = 'via';
-  caja(g, '#8A949D', 0, 0, -1.9, largo, 0.25, 3.8);
+  caja(g, '#8A949D', 0, 0, -VIA_ANCHO / 2, largo, 0.25, VIA_ANCHO);
   const durmientes: Caja[] = [];
-  for (let x = 0.3; x < largo; x += 0.6) durmientes.push([x, 0.25, -1.3, 0.25, 0.12, 2.6]);
+  for (let x = 0.3; x + 0.25 <= largo; x += 0.6) durmientes.push([x, 0.25, -1.3, 0.25, 0.12, 2.6]);
   if (durmientes.length) g.add(instancias(PALETA.oscuro, durmientes));
   for (const z of [-0.7175, 0.7175]) caja(g, '#B7BDC3', 0, 0.37, z - 0.04, largo, 0.15, 0.08);
   return g;
