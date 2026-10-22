@@ -1,6 +1,6 @@
 # Estiba: guía del docente
 
-**Antes de empezar:** abrí el sitio unos minutos antes (el servidor puede estar dormido) y tené a mano el **código de sala** (4 dígitos) y el **PIN**.
+**Antes de empezar:** abrí el sitio unos minutos antes (si usás el plan gratis, el servidor puede estar dormido) y tené a mano el **código de sala** (4 dígitos) y el **PIN**.
 
 ## Abrir la sala
 1. En la laptop abrí `/?sala=XXXX&rol=proyector&publico=<url pública>`: el proyector muestra el **QR** y el código.
@@ -29,8 +29,8 @@
 ## Si algo falla
 - **No carga o tarda:** el servidor se estaba despertando; esperá 1 minuto y recargá.
 - **«Demasiados intentos, esperá un minuto»:** PIN mal escrito varias veces; esperá y reintentá.
-- **Un alumno ve mal o mira para otro lado:** que toque **Recentrar** (o «Recentrar a todos» desde tu menú).
-- **Alguien se marea:** que se saque el visor y mire el proyector. No sigas moviéndolos.
+- **Un alumno ve mal o mira para otro lado:** que toque la pantalla (o el botón del Cardboard) para recentrar (o «Recentrar a todos» desde tu menú).
+- **Alguien se marea:** que se saque el visor y mire el proyector. No sigas moviendo su vista.
 - **Un alumno se desconectó:** que recargue la página; vuelve al mismo paso.
 - **El Quest no entra en VR/AR:** usá los botones de la página (no el menú de muñeca).
 - **El Quest falla del todo:** pasá a la laptop (modo mouse y teclado), la clase sigue igual.

@@ -31,7 +31,7 @@ El día
 - [ ] 4 a 6 visores Cardboard limpios.
 - [ ] Quest 3 cargado, link guardado, controles emparejados.
 - [ ] **Hotspot 4G propio**, aunque el lugar tenga WiFi; celulares y Quest conectados a él.
-- [ ] Despertar el servidor ~1 minuto antes (abrir la URL); si el plan es gratis, no se guarda nada entre reinicios.
+- [ ] Despertar el servidor ~1 minuto antes (abrir la URL); con plan gratis además se pierden las salas guardadas al reiniciar.
 - [ ] Laptop con el modo docente con mouse (plan B) y el editor abierto en `/editor.html?sala=XXXX&pin=PIN`.
 - [ ] Proyector con `rol=proyector` mostrando QR y código; sin aviso de «link local».
 - [ ] Video de respaldo abierto en la laptop.
@@ -43,7 +43,7 @@ El día
 - En iPhone hace falta «Agregar a inicio» para pantalla completa.
 - El contenedor **no pasa por la puerta (gate)**: no hay modelo de camión.
 - Los **datos de las fichas** (capacidades, productividades, medidas) son ejemplos a validar.
-- Plan gratis de Render: el servidor se duerme y no hay disco persistente.
+- Plan gratis de Render: el servidor se duerme (tarda ~1 min en despertar) y hay que sacar el disco de `render.yaml`, así que las salas no sobreviven a un reinicio.
 
 ## Después del ensayo
 Medir: cuadros por segundo en cada celular (30 o más), tiempo entre «pónganse el visor» y todos adentro (menos de 1 min), si alguien se mareó, y el tiempo real de cada parte. Priorizar los problemas para el día 9.

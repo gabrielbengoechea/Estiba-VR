@@ -48,10 +48,11 @@ Claude no puede crear cuentas: lo hace el equipo.
 4. Esperar el primer despliegue y abrir la URL `https://estiba.onrender.com` (o la que asigne Render).
 5. Verificar: un celular y el Quest entran por HTTPS a `/?sala=XXXX&rol=alumno` y `/?sala=XXXX&rol=docente&pin=PIN` y siguen la clase.
 
-Qué configura `render.yaml`: servicio web Node 22, build `npm ci && npm run build`, start `npm start`, `NODE_ENV=production`, `ESTIBA_DETRAS_DE_PROXY=1` y un disco persistente en `/var/data` (variable `ESTIBA_DATOS`) donde se guardan las salas.
+Qué configura `render.yaml`: servicio web Node 22, build `npm ci && npm run build`, start `npm start`, `NODE_ENV=production`, `ESTIBA_DETRAS_DE_PROXY=1`, `ESTIBA_PROXIES=1` y un disco persistente en `/var/data` (variable `ESTIBA_DATOS`) donde se guardan las salas.
 
-- **`ESTIBA_DETRAS_DE_PROXY=1`**: detrás de Render todos llegan con la IP del proxy; con esta variable el límite de intentos de PIN usa la primera IP de `X-Forwarded-For`. Si no está detrás de un proxy, no la pongas (la cabecera se puede falsificar).
-- **Planes**: el plan gratis se duerme tras unos 15 minutos sin uso y tarda cerca de 1 minuto en despertar; además no admite disco, así que las salas guardadas se pierden al reiniciar. El disco requiere un plan pago. Para la demo, abrí la URL unos minutos antes de empezar.
+- **IP detrás del proxy**: en Render todos llegan con la IP del proxy, y el límite de intentos de PIN va por IP. Con `ESTIBA_DETRAS_DE_PROXY=1` el servidor usa la entrada de `X-Forwarded-For` que está N-ésima **desde la derecha** (`ESTIBA_PROXIES`, por defecto 1), porque cada proxy agrega al final la IP que ve y lo de la izquierda lo puede falsificar cualquiera. Sin la variable, la cabecera se ignora.
+  - Cómo verificar N en Render: desplegar con un `console.log(req.headers['x-forwarded-for'])` temporal en `server/servidor.ts`, hacer `curl -H "X-Forwarded-For: 1.2.3.4" https://<servicio>.onrender.com/` y mirar el log: la IP real de quien llama tiene que ser la entrada N-ésima desde la derecha (con un solo proxy, la última, N=1). Si hay más proxies (por ejemplo un CDN delante), subí `ESTIBA_PROXIES`. Después sacá el log.
+- **Planes**: este blueprint usa un plan pago (`starter`) porque el disco persistente lo exige; ese plan no se duerme. En el plan gratis hay que borrar el bloque `disk` y `ESTIBA_DATOS` de `render.yaml` (las salas guardadas se pierden al reiniciar) y el servidor se duerme tras unos 15 minutos sin uso: abrí la URL ~1 minuto antes de la clase.
 
 ## Documentación
 
