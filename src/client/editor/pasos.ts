@@ -7,6 +7,7 @@ import type { Clase, EstadoSala, Paso, Vista } from '../../shared/tipos';
 export const FICHAS_DISPONIBLES: { id: string; titulo: string }[] = [
   { id: 'buque-portacontenedores', titulo: 'Buque portacontenedores' },
   { id: 'grua-sts', titulo: 'Grúa pórtico (con vista explotada)' },
+  { id: 'descarga', titulo: 'Descarga' },
   { id: 'bloque-patio', titulo: 'Bloque de patio' },
   { id: 'recorrido-contenedor', titulo: 'Recorrido del contenedor' },
   { id: 'puerta-y-tren', titulo: 'Puerta y tren' },

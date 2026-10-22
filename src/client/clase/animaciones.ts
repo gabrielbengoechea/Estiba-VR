@@ -314,6 +314,14 @@ export function ocultarColgado(grúaConducida: boolean, cajaVisible: boolean): b
   return grúaConducida && cajaVisible;
 }
 
+/**
+ * ¿Se esconde la caja animada? Con la grúa en vista explotada no se conduce, así que en los tramos en que el contenedor
+ * cuelga de su spreader la caja volaría sola: se esconde.
+ */
+export function ocultarCajaPorExplotada(explotando: boolean, enganche: Enganche | undefined): boolean {
+  return explotando && enganche === 'spreader-sts';
+}
+
 /** Posición de reposo de una pieza de la grúa: se guarda una vez (`VistaExplotada` también la usa como base). */
 function reposo(o: THREE.Object3D): Vec3 {
   return (o.userData.reposo ??= o.position.toArray()) as Vec3;
@@ -373,7 +381,7 @@ export class Animador {
     const p = posicionEn(this.tramos, t, this.p);
     this.marca++;
 
-    this.caja.visible = def.contenedor && this.completa;
+    this.caja.visible = def.contenedor && this.completa && !ocultarCajaPorExplotada(this.explotando(), this.tramos[p.tramo]?.enganche);
     if (this.caja.visible) {
       this.caja.position.set(p.pos[0], p.pos[1], p.pos[2]);
       this.caja.rotation.y = p.giro;

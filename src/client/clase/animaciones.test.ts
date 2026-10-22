@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Escena } from '../../shared/tipos';
-import { ALTURA_FINAL, animaciones, enganchePartes, ocultarColgado, posicionEn, segundosDesde, TREN_CONTENEDOR, TREN_LARGO, type Tramo } from './animaciones';
+import { ALTURA_FINAL, animaciones, enganchePartes, ocultarCajaPorExplotada, ocultarColgado, posicionEn, segundosDesde, TREN_CONTENEDOR, TREN_LARGO, type Tramo } from './animaciones';
 
 const dos: Tramo[] = [
   { desde: [0, 0, 0], hasta: [10, 0, 0], duracion: 10 },
@@ -194,5 +194,14 @@ describe('contenedor colgado de la grúa', () => {
   it('grúa no conducida (ausente o explotada) o módulo clave faltante: se ve', () => {
     expect(ocultarColgado(false, false)).toBe(false);
     expect(ocultarColgado(true, false)).toBe(false);
+  });
+});
+
+describe('ocultarCajaPorExplotada', () => {
+  it('esconde la caja solo con la grúa explotada y en tramos del spreader de la STS', () => {
+    expect(ocultarCajaPorExplotada(true, 'spreader-sts')).toBe(true);
+    expect(ocultarCajaPorExplotada(false, 'spreader-sts')).toBe(false);
+    expect(ocultarCajaPorExplotada(true, 'tractor')).toBe(false);
+    expect(ocultarCajaPorExplotada(true, undefined)).toBe(false);
   });
 });

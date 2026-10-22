@@ -8,7 +8,7 @@ Demo para docentes y jurado. El público hace de alumnos con celulares que lleva
 |---|---|---|
 | 0:00 - 1:00 | Contexto (proyector) | Qué problema resuelve Estiba y sus tres modos. |
 | 1:00 - 2:00 | Al visor | Se reparten los celulares con su Cardboard; ya están dentro de la sala. Meta: menos de 1 min hasta que todos estén adentro. |
-| 2:00 - 8:00 | La clase (6 min) | Docente con el Quest recorre los 5 pasos: «Traer a todos acá», «Miren acá», ficha de la grúa STS con vista explotada, animación del contenedor. |
+| 2:00 - 8:00 | La clase (6 min) | Docente con el Quest recorre los 6 pasos: «Traer a todos acá», «Miren acá», ficha de la grúa STS con vista explotada (paso «La grúa por dentro») y animación del contenedor. |
 | 8:00 - 10:00 | Armar en vivo (2 min) | Desde la laptop (editor) agrega una grúa y alarga un bloque de patio; el cambio aparece en todos los visores. |
 | 10:00 - 11:00 | Maqueta en la mesa (1 min) | El docente pasa a AR y la terminal aparece en miniatura sobre una mesa; el proyector lo muestra. |
 | 11:00 - 13:00 | Hacia dónde va (2 min) | Alumnos que construyen, otras instalaciones, AR en celulares, con imágenes de concepto. |

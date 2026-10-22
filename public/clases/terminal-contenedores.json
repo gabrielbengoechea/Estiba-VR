@@ -4,7 +4,8 @@
   "escena": "terminal-a",
   "pasos": [
     { "id": "llegada", "titulo": "Llegada del buque", "vista": "proa", "resaltar": ["buque-1"], "ficha": "buque-portacontenedores", "animacion": "atraque" },
-    { "id": "descarga", "titulo": "Descarga con la grúa", "vista": "pata-sts-2", "resaltar": ["sts-2"], "ficha": "grua-sts", "animacion": "descarga-ciclo" },
+    { "id": "grua-por-dentro", "titulo": "La grúa por dentro", "vista": "pata-sts-2", "resaltar": ["sts-2"], "ficha": "grua-sts" },
+    { "id": "descarga", "titulo": "Descarga con la grúa", "vista": "pata-sts-2", "resaltar": ["sts-2"], "ficha": "descarga", "animacion": "descarga-ciclo" },
     { "id": "almacenamiento", "titulo": "Almacenamiento en el patio", "vista": "sobre-patio", "resaltar": ["patio-a"], "ficha": "bloque-patio" },
     { "id": "movimientos", "titulo": "Movimientos dentro de la terminal", "vista": "cenital", "resaltar": ["rtg-1"], "ficha": "recorrido-contenedor", "animacion": "recorrido" },
     { "id": "salida", "titulo": "Salida por puerta o tren", "vista": "puerta", "resaltar": ["puerta-1"], "ficha": "puerta-y-tren", "animacion": "salida" }

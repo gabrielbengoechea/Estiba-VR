@@ -1,0 +1,11 @@
+{
+  "id": "descarga",
+  "titulo": "Descarga",
+  "texto": "La grúa baja el contenedor del buque al tractor, que lo lleva al patio, donde otra grúa lo apila.",
+  "datos": [
+    { "etiqueta": "Ciclo de la grúa", "valor": "unos 2 minutos" },
+    { "etiqueta": "Del buque al patio", "valor": "4 equipos en cadena" },
+    { "etiqueta": "Contenedor de 40'", "valor": "12,19 m de largo" }
+  ],
+  "ejemplo": true
+}

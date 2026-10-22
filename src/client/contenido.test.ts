@@ -9,7 +9,7 @@ const leer = <T>(ruta: string): T => JSON.parse(readFileSync(resolve(publico, ru
 
 const escena = leer<Escena>('escenas/terminal-a.json');
 const clase = leer<Clase>('clases/terminal-contenedores.json');
-const FICHAS = ['buque-portacontenedores', 'grua-sts', 'bloque-patio', 'recorrido-contenedor', 'puerta-y-tren'];
+const FICHAS = ['buque-portacontenedores', 'grua-sts', 'descarga', 'bloque-patio', 'recorrido-contenedor', 'puerta-y-tren'];
 
 describe('contenido por defecto', () => {
   it('la escena tiene los ids fijos, sin repetir, y solo tipos del catálogo', () => {
@@ -25,13 +25,13 @@ describe('contenido por defecto', () => {
     expect(Object.keys(escena.vistas).sort()).toEqual(['cenital', 'general', 'pata-sts-2', 'proa', 'puerta', 'sobre-patio']);
   });
 
-  it('la clase tiene los 5 pasos en orden y todo lo que referencian existe', () => {
+  it('la clase tiene los 6 pasos en orden y todo lo que referencian existe', () => {
     expect(clase.escena).toBe('terminal-a');
-    expect(clase.pasos.map((p) => p.id)).toEqual(['llegada', 'descarga', 'almacenamiento', 'movimientos', 'salida']);
-    expect(clase.pasos.map((p) => p.vista)).toEqual(['proa', 'pata-sts-2', 'sobre-patio', 'cenital', 'puerta']);
-    expect(clase.pasos.map((p) => p.resaltar[0])).toEqual(['buque-1', 'sts-2', 'patio-a', 'rtg-1', 'puerta-1']);
-    expect(clase.pasos.map((p) => p.ficha)).toEqual(['buque-portacontenedores', 'grua-sts', 'bloque-patio', 'recorrido-contenedor', 'puerta-y-tren']);
-    expect(clase.pasos.map((p) => p.animacion)).toEqual(['atraque', 'descarga-ciclo', undefined, 'recorrido', 'salida']);
+    expect(clase.pasos.map((p) => p.id)).toEqual(['llegada', 'grua-por-dentro', 'descarga', 'almacenamiento', 'movimientos', 'salida']);
+    expect(clase.pasos.map((p) => p.vista)).toEqual(['proa', 'pata-sts-2', 'pata-sts-2', 'sobre-patio', 'cenital', 'puerta']);
+    expect(clase.pasos.map((p) => p.resaltar[0])).toEqual(['buque-1', 'sts-2', 'sts-2', 'patio-a', 'rtg-1', 'puerta-1']);
+    expect(clase.pasos.map((p) => p.ficha)).toEqual(['buque-portacontenedores', 'grua-sts', 'descarga', 'bloque-patio', 'recorrido-contenedor', 'puerta-y-tren']);
+    expect(clase.pasos.map((p) => p.animacion)).toEqual(['atraque', undefined, 'descarga-ciclo', undefined, 'recorrido', 'salida']);
     const ids = escena.modulos.map((m) => m.id);
     for (const p of clase.pasos) {
       expect(escena.vistas[p.vista]).toBeDefined();
@@ -45,6 +45,13 @@ describe('contenido por defecto', () => {
       expect(f.id).toBe(id);
       expect(f.titulo.length).toBeGreaterThan(0);
       expect(f.ejemplo).toBe(true);
+    }
+  });
+
+  it('la animación de descarga no comparte paso con una ficha explotada', () => {
+    for (const p of clase.pasos.filter((q) => q.animacion === 'descarga-ciclo')) {
+      const f = leer<Ficha>(`fichas/${p.ficha}.json`);
+      expect(f.explotada).toBeUndefined();
     }
   });
 
