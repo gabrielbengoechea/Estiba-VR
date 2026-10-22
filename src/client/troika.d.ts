@@ -3,10 +3,12 @@ declare module 'troika-three-text' {
   import { Mesh, Material } from 'three';
   export class Text extends Mesh {
     text: string;
+    font: string | null;
     fontSize: number;
     color: number | string;
     maxWidth: number;
     lineHeight: number | string;
+    overflowWrap: string;
     anchorX: number | string;
     anchorY: number | string;
     outlineWidth: number | string;
@@ -16,4 +18,9 @@ declare module 'troika-three-text' {
     sync(callback?: () => void): void;
     dispose(): void;
   }
+}
+
+declare module '*.woff?url' {
+  const url: string;
+  export default url;
 }

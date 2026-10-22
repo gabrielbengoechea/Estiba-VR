@@ -3,6 +3,7 @@
 // en el espacio local de la grúa (Y arriba, como three.js).
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
+import fuenteSemi from '@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff?url';
 import type { Vec3 } from '../../shared/tipos';
 
 export type PiezaSts = 'estructura' | 'pluma' | 'carro' | 'spreader' | 'cabina' | 'contenedor';
@@ -96,6 +97,7 @@ export class VistaExplotada {
       this.cajaTmp.setFromObject(obj);
       const centro = this.cajaTmp.isEmpty() ? new THREE.Vector3() : nueva.worldToLocal(this.cajaTmp.getCenter(new THREE.Vector3()));
       const etiqueta = new Text();
+      etiqueta.font = fuenteSemi;
       etiqueta.text = ETIQUETAS[nombre];
       etiqueta.fontSize = ALTO_ETIQUETA;
       etiqueta.anchorX = 'center';

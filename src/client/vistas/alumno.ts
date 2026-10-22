@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import type { EstadoSala } from '../../shared/tipos';
 import { configurarRenderer, crearAmbiente, habilitarSombras } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
-import { ESCALA_VISOR, GestorFichas } from '../clase/fichas';
+import { GestorFichas } from '../clase/fichas';
 import { Reproductor } from '../clase/reproductor';
 import { estadoEntrada, mostrarEntrada } from './entrada';
 import { mostrarError } from './errorVista';
@@ -140,7 +140,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   const vista = new VistaEstereo(renderer);
 
   // El reproductor mueve la cámara (con fundido), compone el giroscopio y dibuja resaltado, aro, flecha y etiquetas.
-  const fichas = new GestorFichas(escena, viva, cabeza, ESCALA_VISOR);
+  const fichas = new GestorFichas(escena, viva, cabeza, 'visor');
   const reproductor = new Reproductor({
     escena, viva, camara: cabeza, alumno: { app, orientacion },
     alCambiarFicha: (id) => fichas.abrir(id),

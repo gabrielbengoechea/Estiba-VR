@@ -320,7 +320,8 @@ export class Reproductor {
     const r = actualizarPermanencia(this.permanencia, this.objetivoMirado, dt);
     this.permanencia = { objetivo: r.objetivo, tiempo: r.tiempo };
     const mod = r.mostrar && e ? e.escena.modulos.find((m) => m.id === r.mostrar) : undefined;
-    const texto = mod ? mod.nombre ?? catalogo[mod.tipo].nombre : '';
+    // Con una ficha abierta la etiqueta de mirada se oculta: se superpondría con el panel.
+    const texto = mod && !e?.fichaAbierta ? mod.nombre ?? catalogo[mod.tipo].nombre : '';
     for (const et of this.etiquetas) {
       et.style.display = texto ? 'block' : 'none';
       if (et.textContent !== texto) et.textContent = texto;

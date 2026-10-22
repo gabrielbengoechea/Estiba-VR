@@ -4,39 +4,64 @@ import * as THREE from 'three';
 import { Text } from 'troika-three-text';
 import type { EstadoSala, Ficha } from '../../shared/tipos';
 import type { EscenaViva } from '../escena/construirEscena';
+import fuenteNormal from '@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff?url';
+import fuenteSemi from '@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff?url';
 import { DISTANCIA_REF, escalaAparente, VistaExplotada } from './explotada';
 
-/** Medidas del panel a `DISTANCIA_REF` (25 m) de quien lo mira, en metros. */
-export const ALTO_TITULO = 0.9;
-export const ALTO_TEXTO = 0.45;
-export const ALTO_NOTA = 0.36;
 export const MAX_DATOS = 3;
-const ANCHO_PANEL = 12;
-const MARGEN = 0.7;
-const INTERLINEA = 0.5;
+export type ModoPanel = 'visor' | 'escritorio';
+/** Medidas del panel (m) a `DISTANCIA_REF` (25 m) de quien lo mira, antes de multiplicar por la escala del modo. */
+interface Medidas { ancho: number; margen: number; titulo: number; texto: number; nota: number }
+export const MEDIDAS: Record<ModoPanel, Medidas> = {
+  escritorio: { ancho: 12, margen: 0.7, titulo: 0.9, texto: 0.45, nota: 0.36 },
+  visor: { ancho: 4.9, margen: 0.25, titulo: 0.45, texto: 0.45, nota: 0.3 },
+};
+const INTERLINEA = 0.3;
 /** Mitad del campo visual (grados) que se considera útil en un ojo del visor; el panel tiene que caber dentro. */
 const CAMPO_MEDIO = 38;
 /** Si el módulo está a más de estos grados de donde mira la cámara, el panel no se ajusta al campo visual. */
 const LIMITE_AJUSTE = 60;
 /**
- * Multiplicador del panel (1 = medidas del brief: título 0,9 m, texto 0,45 m a 25 m). Con 1 el texto mide unos 5 px en un
- * ojo de un celular de 390 px de alto (80° de campo): ilegible. En el visor se usa `ESCALA_VISOR`; en escritorio `ESCALA_ESCRITORIO`.
+ * Escala del visor: un ojo de celular mide 390 px de alto para 80° de campo, así que 40 px = 8,2° = 3,6 m a 25 m.
+ * Los datos miden 0,45 m de base, por lo que ESCALA_VISOR ≈ 8,2 (la tangente no es lineal) deja cada línea de datos en 40 px
+ * (el título, igual de grande, también en 40 px; la nota «Datos de ejemplo», secundaria, en 27 px).
  */
-export const ESCALA_VISOR = 2.6;
+export const PX_OJO_ALTO = 390;
+export const CAMPO_VERTICAL_GRADOS = 80;
+export const ESCALA_VISOR = 8.2;
 export const ESCALA_ESCRITORIO = 1;
+
+/** Altura aparente en px de algo de `metros` a 25 m, en un ojo de `PX_OJO_ALTO` px y `CAMPO_VERTICAL_GRADOS`. */
+export function pxAparentes(metros: number, escala: number): number {
+  const grados = (Math.atan((metros * escala) / DISTANCIA_REF) * 180) / Math.PI;
+  return (grados / CAMPO_VERTICAL_GRADOS) * PX_OJO_ALTO;
+}
+
+export interface LineaPanel { tipo: 'titulo' | 'texto' | 'dato' | 'nota'; texto: string }
+
+/** Qué líneas muestra el panel: en el visor no va el párrafo `texto` (no entra a 40 px); en escritorio sí. */
+export function contenidoPanel(f: Ficha, modo: ModoPanel): LineaPanel[] {
+  const l: LineaPanel[] = [{ tipo: 'titulo', texto: f.titulo }];
+  if (modo === 'escritorio') l.push({ tipo: 'texto', texto: f.texto });
+  for (const d of f.datos.slice(0, MAX_DATOS)) l.push({ tipo: 'dato', texto: `${d.etiqueta}: ${d.valor}` });
+  if (f.ejemplo) l.push({ tipo: 'nota', texto: 'Datos de ejemplo' });
+  return l;
+}
 
 const COLOR_FONDO = 0x0e1216;
 const COLOR_TITULO = 0xffd24a;
 const COLOR_TEXTO = 0xffffff;
 const COLOR_DATO = 0xa8d8ff;
 
-function crearTexto(texto: string, tam: number, color: number, ancho: number): Text {
+function crearTexto(texto: string, tam: number, color: number, ancho: number, semi = false): Text {
   const t = new Text();
+  t.font = semi ? fuenteSemi : fuenteNormal; // fuente propia: troika no baja nada de un CDN
   t.text = texto;
   t.fontSize = tam;
   t.color = color;
   t.maxWidth = ancho;
-  t.lineHeight = 1.2;
+  t.lineHeight = 1.15;
+  t.overflowWrap = 'break-word'; // una palabra larga («portacontenedores») se parte en vez de salirse del panel
   t.anchorX = 'left';
   t.anchorY = 'top';
   t.material.depthTest = false;
@@ -46,12 +71,13 @@ function crearTexto(texto: string, tam: number, color: number, ancho: number): T
 }
 
 /**
- * Panel de una ficha, centrado en su origen y mirando hacia +Z. Mide `ANCHO_PANEL` m de ancho a 25 m de distancia;
+ * Panel de una ficha, centrado en su origen y mirando hacia +Z. Mide `MEDIDAS[modo].ancho` m de ancho a 25 m de distancia;
  * `userData.alto` se completa cuando la tipografía termina de armar el texto (el panel se reacomoda solo).
  */
-export function crearPanelFicha(f: Ficha): THREE.Group {
+export function crearPanelFicha(f: Ficha, modo: ModoPanel = 'escritorio'): THREE.Group {
   const grupo = new THREE.Group();
-  const interior = ANCHO_PANEL - 2 * MARGEN;
+  const m = MEDIDAS[modo];
+  const interior = m.ancho - 2 * m.margen;
   const fondo = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
     new THREE.MeshBasicMaterial({ color: COLOR_FONDO, transparent: true, opacity: 0.88, depthTest: false }),
@@ -59,13 +85,16 @@ export function crearPanelFicha(f: Ficha): THREE.Group {
   fondo.renderOrder = 30;
   fondo.raycast = () => undefined;
 
-  const titulo = crearTexto(f.titulo, ALTO_TITULO, COLOR_TITULO, interior);
-  const cuerpo = crearTexto(f.texto, ALTO_TEXTO, COLOR_TEXTO, interior);
-  const datos = f.datos.slice(0, MAX_DATOS).map((d) => crearTexto(`${d.etiqueta}: ${d.valor}`, ALTO_TEXTO, COLOR_DATO, interior));
-  const textos = [titulo, cuerpo, ...datos];
-  if (f.ejemplo) textos.push(crearTexto('Datos de ejemplo', ALTO_NOTA, 0xc9ced3, interior));
+  const textos = contenidoPanel(f, modo).map((l) => {
+    switch (l.tipo) {
+      case 'titulo': return crearTexto(l.texto, m.titulo, COLOR_TITULO, interior, true);
+      case 'texto': return crearTexto(l.texto, m.texto, COLOR_TEXTO, interior);
+      case 'dato': return crearTexto(l.texto, m.texto, COLOR_DATO, interior);
+      default: return crearTexto(l.texto, m.nota, 0xc9ced3, interior);
+    }
+  });
   grupo.add(fondo, ...textos);
-  grupo.userData.ancho = ANCHO_PANEL;
+  grupo.userData.ancho = m.ancho;
   grupo.userData.alto = 0;
 
   const alto = (t: Text): number => {
@@ -73,17 +102,17 @@ export function crearPanelFicha(f: Ficha): THREE.Group {
     return b ? b[3] - b[1] : 0;
   };
   const acomodar = () => {
-    let h = MARGEN;
+    let h = m.margen;
     const ys: number[] = [];
     for (const t of textos) {
       ys.push(h);
       h += alto(t) + INTERLINEA;
     }
-    h += MARGEN - INTERLINEA;
+    h += m.margen - INTERLINEA;
     grupo.userData.alto = h;
-    fondo.scale.set(ANCHO_PANEL, h, 1);
+    fondo.scale.set(m.ancho, h, 1);
     fondo.position.set(0, 0, -0.01);
-    textos.forEach((t, i) => t.position.set(-ANCHO_PANEL / 2 + MARGEN, h / 2 - ys[i], 0));
+    textos.forEach((t, i) => t.position.set(-m.ancho / 2 + m.margen, h / 2 - ys[i], 0));
   };
   let pendientes = textos.length;
   for (const t of textos) t.sync(() => { if (--pendientes === 0) acomodar(); });
@@ -135,7 +164,10 @@ export class GestorFichas {
   private readonly derecha = new THREE.Vector3();
   private readonly adelante = new THREE.Vector3();
 
-  constructor(private escena: THREE.Scene, private viva: EscenaViva, private camara: THREE.Camera, escala = ESCALA_ESCRITORIO) {
+  constructor(
+    private escena: THREE.Scene, private viva: EscenaViva, private camara: THREE.Camera,
+    private modo: ModoPanel = 'escritorio', escala = modo === 'visor' ? ESCALA_VISOR : ESCALA_ESCRITORIO,
+  ) {
     this.escala = escala;
     this.explotada = new VistaExplotada(escena, escala);
   }
@@ -149,7 +181,7 @@ export class GestorFichas {
       this.cerrarPanel();
       this.ficha = f;
       if (!f) { console.warn(`No se pudo cargar la ficha ${id}`); return; }
-      this.panel = crearPanelFicha(f);
+      this.panel = crearPanelFicha(f, this.modo);
       this.panel.visible = false; // hasta el primer cuadro con posición
       this.escena.add(this.panel);
     });
@@ -199,11 +231,11 @@ export class GestorFichas {
       if (this.derecha.lengthSq() < 1e-6) this.derecha.set(1, 0, 0);
       this.derecha.normalize();
       const mitadModulo = 0.5 * (Math.abs(this.derecha.x) * this.tam.x + Math.abs(this.derecha.z) * this.tam.z);
-      // Junto al módulo, pero sin salirse del campo visual: el panel tiene un ancho angular fijo (ANCHO_PANEL / 25 m × escala).
-      const mitadPanel = (Math.atan((0.5 * ANCHO_PANEL * this.escala) / DISTANCIA_REF) * 180) / Math.PI;
+      // Junto al módulo, pero sin salirse del campo visual: el panel tiene un ancho angular fijo (ancho / 25 m × escala).
+      const mitadPanel = (Math.atan((0.5 * MEDIDAS[this.modo].ancho * this.escala) / DISTANCIA_REF) * 180) / Math.PI;
       const maxAngulo = Math.max(4, CAMPO_MEDIO - mitadPanel);
       const lado = Math.min(
-        mitadModulo + 0.5 * ANCHO_PANEL * escala + MARGEN * escala,
+        mitadModulo + 0.5 * MEDIDAS[this.modo].ancho * escala + MEDIDAS[this.modo].margen * escala,
         dist * Math.tan((maxAngulo * Math.PI) / 180),
       );
       objetivo = this.centro.clone().addScaledVector(this.derecha, lado);
@@ -232,7 +264,7 @@ export class GestorFichas {
     const local = objetivo.clone().sub(ojo).applyQuaternion(cam.quaternion.clone().invert());
     const radio = local.length();
     if (radio < 1e-3 || local.z >= 0) return; // pegado al ojo, o detrás de la cámara: no hay a qué ajustar
-    const mitadAncho = Math.atan((0.5 * ANCHO_PANEL * this.escala) / DISTANCIA_REF) / rad;
+    const mitadAncho = Math.atan((0.5 * MEDIDAS[this.modo].ancho * this.escala) / DISTANCIA_REF) / rad;
     const mitadAlto = Math.atan((0.5 * alto * this.escala) / DISTANCIA_REF) / rad;
     const maxYaw = Math.max(0, CAMPO_MEDIO - mitadAncho) * rad;
     const maxPitch = Math.max(0, CAMPO_MEDIO - mitadAlto) * rad;
