@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ConexionSala, ESPERAS_MS, type SocketLike } from './red';
+import { ConexionSala, ESPERAS_MS, SILENCIO_MAX_MS, type SocketLike } from './red';
 
 class Falso implements SocketLike {
   static todos: Falso[] = [];
@@ -112,5 +112,33 @@ describe('ConexionSala', () => {
     vi.advanceTimersByTime(1000);
     expect(poses().length).toBe(2);
     c.cerrar();
+  });
+
+  it('cierra y reconecta si pasan más de 25 s sin ningún mensaje', () => {
+    const c = crear();
+    const cierres: boolean[] = [];
+    c.alCambioConexion((x) => cierres.push(x));
+    const s = Falso.todos[0];
+    s.abrir();
+    vi.advanceTimersByTime(SILENCIO_MAX_MS - 1000);
+    expect(Falso.todos.length).toBe(1);
+    s.recibir({ t: 'pong', tc: 0, ts: 0 }); // cualquier mensaje reinicia la cuenta
+    vi.advanceTimersByTime(SILENCIO_MAX_MS - 1000);
+    expect(c.conectado).toBe(true);
+    vi.advanceTimersByTime(7000); // ya pasaron más de 25 s desde el último mensaje
+    expect(s.readyState).toBe(3);
+    expect(c.conectado).toBe(false);
+    expect(cierres).toEqual([true, false]);
+    vi.advanceTimersByTime(ESPERAS_MS[0]);
+    expect(Falso.todos.length).toBe(2);
+    c.cerrar();
+  });
+
+  it('el silencio no reconecta si la conexión se cerró a propósito', () => {
+    const c = crear();
+    Falso.todos[0].abrir();
+    c.cerrar();
+    vi.advanceTimersByTime(120_000);
+    expect(Falso.todos.length).toBe(1);
   });
 });

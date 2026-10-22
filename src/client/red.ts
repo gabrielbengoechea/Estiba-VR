@@ -13,6 +13,9 @@ const ERRORES_FATALES = [
 
 export const ESPERAS_MS = [500, 1000, 2000, 5000];
 const MIN_ENTRE_POSES_MS = 50;
+/** Si no llegó nada del servidor (ni un pong) en este tiempo, la conexión se da por muerta y se reconecta. */
+export const SILENCIO_MAX_MS = 25_000;
+const REVISION_SILENCIO_MS = 5_000;
 
 export type PoseServidor = MsgServidor & { t: 'pose' };
 export type PoseSaliente = Omit<MsgCliente & { t: 'pose' }, 't'>;
@@ -52,6 +55,8 @@ export class ConexionSala {
   private ultimaPose = -Infinity;
   private poseDiferida: PoseSaliente | null = null;
   private timerPose: ReturnType<typeof setTimeout> | null = null;
+  private vigia: ReturnType<typeof setInterval> | null = null;
+  private ultimoMensaje = 0;
   private cbEstado: ((e: EstadoSala) => void)[] = [];
   private cbPose: ((p: PoseServidor) => void)[] = [];
   private cbError: ((motivo: string) => void)[] = [];
@@ -121,6 +126,7 @@ export class ConexionSala {
     if (this.temporizador !== null) clearTimeout(this.temporizador);
     this.temporizador = null;
     this.limpiarPose();
+    this.detenerVigia();
     this.reloj.detener();
     this.socket?.close();
   }
@@ -135,6 +141,16 @@ export class ConexionSala {
     this.socket = s;
     s.onopen = () => {
       this.intento = 0;
+      this.ultimoMensaje = this.ahora();
+      this.detenerVigia();
+      this.vigia = setInterval(() => {
+        if (this.socket !== s || this.ahora() - this.ultimoMensaje <= SILENCIO_MAX_MS) return;
+        // Silencio de más de 25 s: la conexión está muerta aunque el navegador no lo sepa. Se cierra a la fuerza
+        // (sin esperar el cierre del navegador, que puede tardar minutos) para que actúe la reconexión de siempre.
+        s.onclose = null;
+        try { s.close(); } catch { /* ya estaba cerrado */ }
+        alCerrar();
+      }, REVISION_SILENCIO_MS);
       this.mandar({
         t: 'unirse', sala: this.sala, rol: this.rol,
         ...(this.pin !== undefined ? { pin: this.pin } : {}),
@@ -143,13 +159,15 @@ export class ConexionSala {
       this.cambiarConexion(true);
     };
     s.onmessage = (ev) => {
+      this.ultimoMensaje = this.ahora();
       if (typeof ev.data !== 'string') return;
       let m: MsgServidor;
       try { m = JSON.parse(ev.data) as MsgServidor; } catch { return; }
       this.recibir(m);
     };
-    s.onclose = () => {
+    const alCerrar = (): void => {
       if (this.socket !== s) return;
+      this.detenerVigia();
       this.reloj.detener();
       this.limpiarPose();
       if (!this.cerrada && !this.fatal) {
@@ -159,7 +177,13 @@ export class ConexionSala {
       }
       this.cambiarConexion(false);
     };
+    s.onclose = alCerrar;
     s.onerror = () => { /* el cierre se encarga de reconectar */ };
+  }
+
+  private detenerVigia(): void {
+    if (this.vigia !== null) clearInterval(this.vigia);
+    this.vigia = null;
   }
 
   private recibir(m: MsgServidor): void {

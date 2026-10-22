@@ -17,10 +17,10 @@ afterEach(async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-async function levantar(): Promise<number> {
+async function levantar(latidoMs?: number): Promise<number> {
   dir = mkdtempSync(join(tmpdir(), 'estiba-http-'));
   http = crearServidor({
-    pin: '1234', dirDatos: dir, dirWeb: join(dir, 'no-existe'),
+    pin: '1234', dirDatos: dir, dirWeb: join(dir, 'no-existe'), latidoMs,
     contenidoPorDefecto: () => ({
       escena: { metrosPorCelda: 10, modulos: [], vistas: {} },
       clase: { id: 'c', titulo: 'C', escena: 'e', pasos: [] },
@@ -59,5 +59,20 @@ describe('servidor HTTP', () => {
     const puerto = await levantar();
     const r = await fetch(`http://127.0.0.1:${puerto}/`);
     expect(r.status).toBe(404);
+  });
+
+  it('corta al cliente que no contesta los pings (y uno que sí contesta sigue)', async () => {
+    const puerto = await levantar(60);
+    const unir = (opts: ConstructorParameters<typeof WebSocket>[2]) => new Promise<WebSocket>((ok, mal) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${puerto}/ws`, opts);
+      abiertos.push(ws);
+      ws.once('open', () => { ws.send(JSON.stringify({ t: 'unirse', sala: '1234', rol: 'alumno' })); ok(ws); });
+      ws.once('error', mal);
+    });
+    const mudo = await unir({ autoPong: false } as never); // autoPong existe en ws 8.18 pero falta en @types/ws 8.5
+    const normal = await unir({});
+    const cerroMudo = new Promise<void>((ok) => mudo.once('close', () => ok()));
+    await cerroMudo;
+    expect(normal.readyState).toBe(WebSocket.OPEN);
   });
 });

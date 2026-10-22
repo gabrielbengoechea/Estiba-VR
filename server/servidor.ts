@@ -4,6 +4,7 @@ import { extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer } from 'ws';
 import { Salas, type OpcionesSalas } from './salas';
 import { ipCliente } from './ip';
+import { iniciarLatido, LATIDO_MS } from './latido';
 
 const TIPOS: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -21,7 +22,7 @@ const TIPOS: Record<string, string> = {
 const ALIAS: Record<string, string> = { '/': '/index.html', '/editor': '/editor.html' };
 
 /** Servidor HTTP (sirve `dirWeb`) con WebSocket en /ws. No empieza a escuchar: lo hace quien lo llama. */
-export function crearServidor(opts: OpcionesSalas & { dirWeb: string }): Server {
+export function crearServidor(opts: OpcionesSalas & { dirWeb: string; latidoMs?: number }): Server {
   const salas = new Salas(opts);
   const dirWeb = normalize(opts.dirWeb);
 
@@ -45,6 +46,7 @@ export function crearServidor(opts: OpcionesSalas & { dirWeb: string }): Server 
 
   const wss = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
   wss.on('connection', (ws, req) => salas.conectar(ws, ipCliente(req)));
+  iniciarLatido(wss, opts.latidoMs ?? LATIDO_MS);
 
   http.on('upgrade', (req, socket, head) => {
     socket.on('error', () => { /* cliente que se fue: nada que hacer */ });
