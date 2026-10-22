@@ -35,6 +35,7 @@ El día
 - [ ] Laptop con el modo docente con mouse (plan B) y el editor abierto en `/editor.html?sala=XXXX&pin=PIN`.
 - [ ] Proyector con `rol=proyector` mostrando QR y código; sin aviso de «link local».
 - [ ] Video de respaldo abierto en la laptop.
+- [ ] Si algún celular va lento (menos de 30 cuadros/s con `&fps=1`): abrir su link con `&sombras=0`, que apaga las sombras y baja la resolución.
 - [ ] Mesa despejada para la maqueta AR.
 
 ## Límites conocidos (decirlos con honestidad)

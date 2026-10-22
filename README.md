@@ -25,10 +25,10 @@ Reemplazá `XXXX` por el código de sala (4 dígitos) y `PIN` por el PIN.
 
 | Rol | Dirección |
 |---|---|
-| Alumno | `/?sala=XXXX&rol=alumno` (agregá `&fps=1` para ver los cuadros por segundo, `&simular=1` para probar con el mouse en la compu) |
+| Alumno | `/?sala=XXXX&rol=alumno` (agregá `&fps=1` para ver los cuadros por segundo, `&simular=1` para probar con el mouse en la compu, `&sombras=0` para apagar las sombras y bajar la resolución en celulares lentos) |
 | Docente | `/?sala=XXXX&rol=docente&pin=PIN` |
 | Proyector | `/?sala=XXXX&rol=proyector&publico=<url pública>` (muestra el QR y el código) |
-| Editor | `/editor.html?sala=XXXX&pin=PIN` |
+| Editor | `/editor.html?sala=XXXX&pin=PIN` (también sirve `/?sala=XXXX&rol=editor&pin=PIN`, que redirige) |
 
 ### Probar desde celulares sin publicar (túnel)
 
