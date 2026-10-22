@@ -6,6 +6,9 @@ import { paramsPorDefecto } from './herramientas';
 
 export class PanelParametros {
   private idActual: string | null = null;
+  private lectura: HTMLElement | null = null;
+  private controles = new Map<string, { rango: HTMLInputElement; salida: HTMLOutputElement }>();
+  private arrastrando: string | null = null;
 
   constructor(
     private contenedor: HTMLElement,
@@ -14,12 +17,23 @@ export class PanelParametros {
     this.mostrar(null);
   }
 
-  /** Redibuja para `modulo`. Si es el mismo módulo y se está tocando un control, no lo pisa. */
+  /** Muestra `modulo`. Si es el mismo con los mismos controles, solo actualiza valores (menos el que se está arrastrando). */
   mostrar(modulo: Modulo | null): void {
-    const mismo = modulo !== null && modulo.id === this.idActual;
-    if (mismo && this.contenedor.contains(document.activeElement) && document.activeElement instanceof HTMLInputElement) {
+    if (modulo && modulo.id === this.idActual && this.lectura && this.controles.size === catalogo[modulo.tipo].paramsEditables.length) {
+      this.lectura.textContent = this.detalle(modulo);
+      const defecto = paramsPorDefecto(modulo.tipo) ?? {};
+      for (const def of catalogo[modulo.tipo].paramsEditables) {
+        const c = this.controles.get(def.clave);
+        if (!c || this.arrastrando === def.clave) continue;
+        const valor = String(modulo.params?.[def.clave] ?? defecto[def.clave] ?? def.min);
+        c.rango.value = valor;
+        c.salida.textContent = valor;
+      }
       return;
     }
+    this.controles.clear();
+    this.lectura = null;
+    this.arrastrando = null;
     this.idActual = modulo?.id ?? null;
     this.contenedor.textContent = '';
     const titulo = document.createElement('h2');
@@ -37,7 +51,8 @@ export class PanelParametros {
     this.contenedor.append(nombre);
     const pos = document.createElement('p');
     pos.className = 'detalle';
-    pos.textContent = `Celda ${modulo.celda[0]}, ${modulo.celda[1]} · giro ${modulo.rot}°`;
+    pos.textContent = this.detalle(modulo);
+    this.lectura = pos;
     this.contenedor.append(pos);
 
     if (entrada.paramsEditables.length === 0) {
@@ -60,12 +75,25 @@ export class PanelParametros {
       rango.step = String(def.paso);
       rango.value = String(valor);
       rango.addEventListener('input', () => { lectura.textContent = rango.value; });
+      rango.addEventListener('pointerdown', () => { this.arrastrando = def.clave; });
+      const soltar = () => { if (this.arrastrando === def.clave) this.arrastrando = null; };
+      rango.addEventListener('pointerup', soltar);
+      rango.addEventListener('pointercancel', soltar);
+      rango.addEventListener('blur', soltar);
+      rango.addEventListener('keydown', () => { this.arrastrando = def.clave; });
       rango.addEventListener('change', () => {
+        this.arrastrando = null;
         if (this.idActual !== null) this.alCambiar(this.idActual, { [def.clave]: Number(rango.value) });
+        rango.blur(); // el foco no queda en el slider: los atajos de teclado siguen funcionando
       });
+      this.controles.set(def.clave, { rango, salida: lectura });
       fila.append(texto, rango);
       this.contenedor.append(fila);
     }
+  }
+
+  private detalle(m: Modulo): string {
+    return `Celda ${m.celda[0]}, ${m.celda[1]} · giro ${m.rot}°`;
   }
 
   private nota(texto: string): void {

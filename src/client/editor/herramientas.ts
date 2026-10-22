@@ -42,19 +42,17 @@ export function opColocar(tipo: TipoModulo, celda: [number, number], escena: Esc
   return { op: 'agregar', modulo };
 }
 
-/** R gira y Supr (o Retroceso) borra el módulo seleccionado. */
+/** R gira y Supr borra (Retroceso no, para no borrar por accidente) el módulo seleccionado. */
 export function teclaAOp(tecla: string, seleccionado: string | null): OpEscena | null {
   if (seleccionado === null) return null;
   if (tecla === 'r' || tecla === 'R') return { op: 'girar', id: seleccionado };
-  if (tecla === 'Delete' || tecla === 'Backspace') return { op: 'borrar', id: seleccionado };
+  if (tecla === 'Delete') return { op: 'borrar', id: seleccionado };
   return null;
 }
 
-/** Los atajos no deben dispararse mientras se escribe. Los sliders y botones no cuentan como escribir. */
-export function esTeclaEnCampo(tag: string | undefined, tipo?: string): boolean {
-  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
-  if (tag === 'INPUT') return !['range', 'button', 'checkbox', 'radio'].includes(tipo ?? 'text');
-  return false;
+/** Los atajos no deben dispararse mientras se escribe. Cuenta cualquier control con foco, también un slider. */
+export function esTeclaEnCampo(tag: string | undefined, _tipo?: string): boolean {
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
 /** Celda de destino al arrastrar: la original más lo que se movió el puntero, en celdas. */

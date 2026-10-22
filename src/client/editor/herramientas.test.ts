@@ -49,7 +49,9 @@ describe('teclaAOp', () => {
     expect(teclaAOp('r', 'a-1')).toEqual({ op: 'girar', id: 'a-1' });
     expect(teclaAOp('R', 'a-1')).toEqual({ op: 'girar', id: 'a-1' });
     expect(teclaAOp('Delete', 'a-1')).toEqual({ op: 'borrar', id: 'a-1' });
-    expect(teclaAOp('Backspace', 'a-1')).toEqual({ op: 'borrar', id: 'a-1' });
+  });
+  it('Retroceso no borra (solo Supr)', () => {
+    expect(teclaAOp('Backspace', 'a-1')).toBeNull();
   });
   it('sin selección o con otra tecla no hace nada', () => {
     expect(teclaAOp('r', null)).toBeNull();
@@ -58,12 +60,12 @@ describe('teclaAOp', () => {
 });
 
 describe('esTeclaEnCampo', () => {
-  it('campos de texto sí; sliders y botones no', () => {
+  it('cualquier control de formulario, incluido el slider; los botones no', () => {
     expect(esTeclaEnCampo('INPUT', 'text')).toBe(true);
     expect(esTeclaEnCampo('INPUT', 'number')).toBe(true);
     expect(esTeclaEnCampo('TEXTAREA')).toBe(true);
     expect(esTeclaEnCampo('SELECT')).toBe(true);
-    expect(esTeclaEnCampo('INPUT', 'range')).toBe(false);
+    expect(esTeclaEnCampo('INPUT', 'range')).toBe(true);
     expect(esTeclaEnCampo('BUTTON')).toBe(false);
     expect(esTeclaEnCampo(undefined)).toBe(false);
   });
