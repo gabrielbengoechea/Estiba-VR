@@ -1,0 +1,10 @@
+{
+  "id": "bloque-patio",
+  "titulo": "Bloque de patio",
+  "texto": "Los contenedores esperan apilados en filas y bahías hasta que se los lleva al buque, a la puerta o al tren.",
+  "datos": [
+    { "etiqueta": "Filas por bloque", "valor": "6" },
+    { "etiqueta": "Altura máxima", "valor": "4 contenedores" }
+  ],
+  "ejemplo": true
+}

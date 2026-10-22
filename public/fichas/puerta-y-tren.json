@@ -1,0 +1,10 @@
+{
+  "id": "puerta-y-tren",
+  "titulo": "Puerta y tren",
+  "texto": "Los contenedores salen de la terminal en camión por la puerta de acceso o en tren por la vía férrea.",
+  "datos": [
+    { "etiqueta": "Carriles de la puerta", "valor": "4" },
+    { "etiqueta": "Vagones del tren", "valor": "4" }
+  ],
+  "ejemplo": true
+}

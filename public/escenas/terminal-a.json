@@ -1,11 +1,26 @@
 {
   "metrosPorCelda": 10,
   "modulos": [
-    { "id": "muelle-1", "tipo": "muelle", "celda": [0, 0], "rot": 0, "nombre": "Muelle" },
-    { "id": "grua-1", "tipo": "grua-sts", "celda": [1, 0], "rot": 0, "nombre": "Grúa pórtico" }
+    { "id": "muelle-1", "tipo": "muelle", "celda": [0, 0], "rot": 0, "params": { "largo": 40 }, "nombre": "Muelle" },
+    { "id": "sts-1", "tipo": "grua-sts", "celda": [12, 0], "rot": 0, "nombre": "Grúa pórtico 1" },
+    { "id": "sts-2", "tipo": "grua-sts", "celda": [17, 0], "rot": 0, "nombre": "Grúa pórtico 2" },
+    { "id": "sts-3", "tipo": "grua-sts", "celda": [22, 0], "rot": 0, "nombre": "Grúa pórtico 3" },
+    { "id": "buque-1", "tipo": "buque", "celda": [6, 2], "rot": 0, "nombre": "Buque portacontenedores" },
+    { "id": "tractor-1", "tipo": "tractor", "celda": [14, -1], "rot": 0, "nombre": "Tractor de terminal 1" },
+    { "id": "tractor-2", "tipo": "tractor", "celda": [14, -4], "rot": 0, "nombre": "Tractor de terminal 2" },
+    { "id": "patio-a", "tipo": "bloque-patio", "celda": [8, -5], "rot": 0, "params": { "filas": 6, "bahias": 20, "altura": 4, "ocupacion": 0.7, "semilla": 7 }, "nombre": "Bloque de patio A" },
+    { "id": "patio-b", "tipo": "bloque-patio", "celda": [8, -8], "rot": 0, "params": { "filas": 6, "bahias": 20, "altura": 4, "ocupacion": 0.55, "semilla": 11 }, "nombre": "Bloque de patio B" },
+    { "id": "rtg-1", "tipo": "grua-rtg", "celda": [12, -6], "rot": 0, "nombre": "Grúa RTG" },
+    { "id": "puerta-1", "tipo": "puerta", "celda": [30, -10], "rot": 0, "params": { "carriles": 4 }, "nombre": "Puerta de acceso" },
+    { "id": "via-1", "tipo": "via", "celda": [26, -14], "rot": 0, "params": { "largo": 12 }, "nombre": "Vía férrea" },
+    { "id": "tren-1", "tipo": "tren", "celda": [27, -14], "rot": 0, "nombre": "Tren de carga" }
   ],
   "vistas": {
-    "entrada": { "pos": [0, 1.6, 12], "mira": [10, 4, 0] },
-    "grua": { "pos": [10, 1.6, 14], "mira": [10, 10, 0] }
+    "general": { "pos": [215, 230, 135], "mira": [215, 0, -75] },
+    "proa": { "pos": [290, 1.7, -2], "mira": [245, 12, 20] },
+    "pata-sts-2": { "pos": [205, 1.7, -24], "mira": [172, 24, 2] },
+    "sobre-patio": { "pos": [95, 26, -32], "mira": [150, 0, -60] },
+    "cenital": { "pos": [135, 105, -58], "mira": [135, 0, -64] },
+    "puerta": { "pos": [318, 1.7, -96], "mira": [304, 4, -125] }
   }
 }

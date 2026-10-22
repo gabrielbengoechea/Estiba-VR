@@ -1,0 +1,10 @@
+{
+  "id": "buque-portacontenedores",
+  "titulo": "Buque portacontenedores",
+  "texto": "Llega al muelle y se amarra para que las grúas descarguen y carguen los contenedores.",
+  "datos": [
+    { "etiqueta": "Eslora", "valor": "200 m" },
+    { "etiqueta": "Contenedores a bordo", "valor": "unos 1.500" }
+  ],
+  "ejemplo": true
+}

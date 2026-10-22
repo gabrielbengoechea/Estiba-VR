@@ -1,0 +1,11 @@
+{
+  "id": "recorrido-contenedor",
+  "titulo": "Recorrido de un contenedor",
+  "texto": "Un tractor lo trae desde la grúa del muelle y la grúa del patio lo apila en su lugar.",
+  "datos": [
+    { "etiqueta": "Paso 1", "valor": "Grúa pórtico" },
+    { "etiqueta": "Paso 2", "valor": "Tractor" },
+    { "etiqueta": "Paso 3", "valor": "Grúa del patio" }
+  ],
+  "ejemplo": true
+}

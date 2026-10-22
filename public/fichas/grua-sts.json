@@ -1,0 +1,11 @@
+{
+  "id": "grua-sts",
+  "titulo": "Grúa pórtico",
+  "texto": "Levanta los contenedores entre el buque y el muelle con un spreader que los toma por las esquinas.",
+  "datos": [
+    { "etiqueta": "Alcance", "valor": "22 filas" },
+    { "etiqueta": "Productividad", "valor": "25–35 movimientos/h" }
+  ],
+  "explotada": "grua-sts",
+  "ejemplo": true
+}

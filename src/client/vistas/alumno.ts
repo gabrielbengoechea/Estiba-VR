@@ -1,61 +1,15 @@
-// Vista provisoria del alumno: entrada + vista doble sobre una escena de prueba
-// con los modelos de /modelos/prueba/. Las tareas siguientes la reemplazan por la escena real.
+// Vista del alumno: entrada + vista doble sobre la escena de la sala.
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import type { EstadoSala } from '../../shared/tipos';
+import { configurarRenderer, crearAmbiente, habilitarSombras } from '../escena/ambiente';
+import { EscenaViva } from '../escena/construirEscena';
+import { guinadaHacia } from './controlesDocente';
 import { estadoEntrada, mostrarEntrada } from './entrada';
 import { mostrarError } from './errorVista';
 import { VistaEstereo } from './estereo';
 import { ConexionSala } from '../red';
 import { MedidorFps } from './medidorFps';
 import { OrientacionAlumno } from './orientacion';
-
-function crearEscena(): THREE.Scene {
-  const escena = new THREE.Scene();
-  escena.background = new THREE.Color('#cfdde8');
-  escena.fog = new THREE.Fog('#cfdde8', 380, 1200);
-
-  escena.add(new THREE.HemisphereLight('#eef4ff', '#857a6c', 1.5));
-  const sol = new THREE.DirectionalLight('#fff2dc', 2.8);
-  sol.position.set(-170, 230, 150);
-  escena.add(sol);
-
-  const material = (color: string, rugosidad = 0.9) => new THREE.MeshStandardMaterial({ color, roughness: rugosidad });
-  const caja = (ancho: number, alto: number, largo: number, color: string, x: number, y: number, z: number) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(ancho, alto, largo), material(color));
-    m.position.set(x, y, z);
-    escena.add(m);
-  };
-
-  const agua = new THREE.Mesh(
-    new THREE.PlaneGeometry(4000, 4000),
-    new THREE.MeshStandardMaterial({ color: '#3d6c8c', roughness: 0.3, metalness: 0.1 }),
-  );
-  agua.rotation.x = -Math.PI / 2;
-  escena.add(agua);
-  caja(700, 3, 263, '#b9bdc1', 0, 1.5, -128.5); // muelle
-  caja(150, 0.05, 40, '#8d939a', 0, 3.02, -66); // pavimento del patio
-  caja(700, 0.06, 0.5, '#e2b21a', 0, 3.03, 2.4); // borde del muelle
-
-  const cargador = new GLTFLoader();
-  const cargar = (archivo: string) =>
-    new Promise<THREE.Object3D>((ok, fallo) =>
-      cargador.load(`/modelos/prueba/${archivo}`, (g) => ok(g.scene), undefined, fallo),
-    );
-  const poner = (obj: THREE.Object3D, x: number, y: number, z: number) => {
-    obj.position.set(x, y, z);
-    escena.add(obj);
-  };
-  Promise.all(['sts.glb', 'patio.glb', 'buque.glb', 'tractor.glb'].map(cargar))
-    .then(([sts, patio, buque, tractor]) => {
-      for (const x of [-70, 0, 70]) poner(x === -70 ? sts : sts.clone(), x, 3, 0);
-      poner(buque, -100, 0, 22);
-      poner(patio, -65, 3, -58);
-      poner(tractor, -3, 3, -15);
-      poner(tractor.clone(), 25, 3, -54.5);
-    })
-    .catch((e) => console.warn('No se pudieron cargar los modelos de prueba', e));
-  return escena;
-}
 
 const ancho = () => document.documentElement.clientWidth;
 const alto = () => document.documentElement.clientHeight;
@@ -136,10 +90,11 @@ function mostrarMotivo(app: HTMLElement, motivo: string): void {
   app.append(capa);
 }
 
-function conectarSala(app: HTMLElement, indicadores: Indicadores): void {
+function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: EstadoSala) => void): void {
   const sala = new URLSearchParams(location.search).get('sala') ?? '';
   try {
     const conexion = new ConexionSala(sala, 'alumno');
+    conexion.alEstado(alEstado);
     conexion.alCambioConexion((c) => indicadores.conexion(c));
     conexion.alError((motivo) => {
       indicadores.conexion(false);
@@ -166,14 +121,22 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   await orientacion.pedirPermiso(); // ya concedido en la entrada: solo engancha el sensor
 
   const renderer = new THREE.WebGLRenderer({ antialias: true }); // lanza si no hay WebGL
+  configurarRenderer(renderer);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(ancho(), alto(), false);
   renderer.domElement.style.cssText = 'display:block;width:100%;height:100%';
   app.append(renderer.domElement);
 
-  const escena = crearEscena();
+  const escena = new THREE.Scene();
+  crearAmbiente(escena);
+  const viva = new EscenaViva();
+  escena.add(viva.raiz);
   const cabeza = new THREE.PerspectiveCamera(80, ancho() / 2 / alto(), 0.1, 3000);
-  cabeza.position.set(36, 4.7, -14);
+  // Giro base que apunta el «frente» del alumno hacia la vista; el giroscopio se compone encima.
+  const base = new THREE.Quaternion();
+  const sensor = new THREE.Quaternion();
+  let escenaJson = '';
+  let seqVisto = -1;
   const vista = new VistaEstereo(renderer);
 
   const reticulas = crearReticulas();
@@ -182,7 +145,18 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   const mostrarFps = new URLSearchParams(location.search).get('fps') === '1';
   const indicadores = crearIndicadores(mostrarFps);
   app.append(indicadores.capa);
-  conectarSala(app, indicadores);
+  conectarSala(app, indicadores, (e) => {
+    const json = JSON.stringify(e.escena);
+    if (json !== escenaJson) {
+      escenaJson = json;
+      viva.aplicar(e.escena).then(() => habilitarSombras(viva.raiz)).catch((err) => console.error('No se pudo aplicar la escena', err));
+    }
+    if (e.ubicacion.seq !== seqVisto) {
+      seqVisto = e.ubicacion.seq;
+      cabeza.position.set(...e.ubicacion.pos);
+      base.setFromAxisAngle(new THREE.Vector3(0, 1, 0), guinadaHacia(e.ubicacion.pos, e.ubicacion.mira));
+    }
+  });
   const medidor = new MedidorFps();
   let ultimoNumero = -Infinity;
 
@@ -217,7 +191,8 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
         }
       }
       const [x, y, z, w] = orientacion.quat();
-      cabeza.quaternion.set(x, y, z, w);
+      sensor.set(x, y, z, w);
+      cabeza.quaternion.copy(base).multiply(sensor);
       vista.render(escena, cabeza);
     } catch (e) {
       renderer.setAnimationLoop(null);
