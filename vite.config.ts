@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       proxy: {
-        '/ws': { target: 'ws://localhost:8787', ws: true },
+        '/ws': { target: `ws://localhost:${process.env.ESTIBA_PUERTO ?? 8787}`, ws: true },
       },
     },
     build: {

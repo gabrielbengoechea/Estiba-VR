@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comandoTraer, esLinkLocal, factorSuavizado, guinadaHacia, teclaAComando, urlAlumno } from './controlesDocente';
+import { comandoTraer, esLinkLocal, factorSuavizado, guinadaHacia, idFichaAlternada, teclaAComando, urlAlumno } from './controlesDocente';
 
 describe('teclaAComando', () => {
   it('las flechas pasan de paso', () => {
@@ -68,5 +68,18 @@ describe('esLinkLocal', () => {
     expect(esLinkLocal('https://algo.trycloudflare.com')).toBe(false);
     expect(esLinkLocal('http://192.168.1.20:5173')).toBe(false);
     expect(esLinkLocal('basura')).toBe(false);
+  });
+});
+
+describe('idFichaAlternada', () => {
+  it('abre la del paso si no hay ninguna abierta', () => {
+    expect(idFichaAlternada(null, 'grua-sts')).toBe('grua-sts');
+  });
+  it('cierra si hay una abierta, sea la del paso o no', () => {
+    expect(idFichaAlternada('grua-sts', 'grua-sts')).toBeNull();
+    expect(idFichaAlternada('otra', 'grua-sts')).toBeNull();
+  });
+  it('sin ficha en el paso no abre nada', () => {
+    expect(idFichaAlternada(null, undefined)).toBeNull();
   });
 });

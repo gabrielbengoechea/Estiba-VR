@@ -83,6 +83,8 @@ function leerPaso(x: unknown, completo: boolean): Partial<Paso> | null {
   for (const k of ['animacion', 'ficha'] as const) {
     if (x[k] === undefined) continue;
     const v = x[k];
+    // En una edición, `null` quita la ficha o la animación del paso.
+    if (v === null && !completo) { p[k] = undefined; continue; }
     if (!esTexto(v)) return null;
     p[k] = v;
   }

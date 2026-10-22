@@ -21,6 +21,8 @@ export interface OpcionesReproductor {
   alumno?: { app: HTMLElement; orientacion: OrientacionAlumno };
   /** Gancho para el panel 3D de fichas (Task 12): se llama cuando cambia `fichaAbierta`. */
   alCambiarFicha?: (id: string | null) => void;
+  /** Se llama en cada cuadro, después de actualizar el resaltado: lo usa el gestor de fichas para seguir al módulo. */
+  alCuadro?: (dt: number, e: EstadoSala | null) => void;
 }
 
 const AMARILLO = new THREE.Color(PALETA.amarillo);
@@ -244,6 +246,7 @@ export class Reproductor {
     this.actualizarDocente();
     this.actualizarResaltado(e);
     this.actualizarAro(e);
+    this.o.alCuadro?.(dt, e);
     if (this.o.alumno) this.actualizarMirada(e, dt);
   }
 

@@ -136,4 +136,17 @@ describe('leerMsgCliente', () => {
       t: 'comando', c: { t: 'clase', op: { op: 'editarPaso', indice: 0, cambios: { titulo: 'X', id: 'otro' } } },
     });
   });
+
+  it('null en editarPaso quita la ficha y la animación; en agregarPaso no vale', () => {
+    const ed = leerMsgCliente(JSON.stringify({
+      t: 'comando', c: { t: 'clase', op: { op: 'editarPaso', indice: 0, cambios: { ficha: null, animacion: null } } },
+    }));
+    expect(ed).toMatchObject({ c: { op: { cambios: {} } } });
+    const cambios = (ed as { c: { op: { cambios: Record<string, unknown> } } }).c.op.cambios;
+    expect(Object.keys(cambios).sort()).toEqual(['animacion', 'ficha']);
+    expect(cambios.ficha).toBeUndefined();
+    expect(leerMsgCliente(JSON.stringify({
+      t: 'comando', c: { t: 'clase', op: { op: 'agregarPaso', paso: { ...paso, ficha: null }, despuesDe: 0 } },
+    }))).toBeNull();
+  });
 });

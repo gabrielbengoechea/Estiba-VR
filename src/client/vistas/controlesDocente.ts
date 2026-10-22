@@ -56,3 +56,8 @@ export function esLinkLocal(url: string): boolean {
     return false;
   }
 }
+
+/** Id para el comando `ficha` al apretar F: cierra la ficha abierta, o abre la del paso (null si no tiene). */
+export function idFichaAlternada(abierta: string | null, delPaso: string | undefined): string | null {
+  return abierta !== null ? null : delPaso ?? null;
+}

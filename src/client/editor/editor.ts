@@ -13,6 +13,7 @@ import {
   celdaArrastrada, esTeclaEnCampo, opColocar, paramsPorDefecto, rectanguloHuella, teclaAOp,
 } from './herramientas';
 import { PanelParametros } from './panelParametros';
+import { PanelPasos } from './pasos';
 
 const CAPA_OVERLAY = 1;
 const UMBRAL_ARRASTRE_PX = 4;
@@ -51,7 +52,23 @@ const ESTILO = `
   #derecha{display:flex;flex-direction:column;min-height:0;background:#161c22;border-left:1px solid #2a323a}
   #vista3d{height:240px;flex:none;border-bottom:1px solid #2a323a;position:relative;overflow:hidden}
   #vista3d canvas{display:block;width:100%;height:100%}
-  #panel{padding:10px;overflow:auto}
+  #pasos{flex:1;min-height:80px;padding:10px;overflow:auto;border-bottom:1px solid #2a323a}
+  #panel{flex:none;max-height:30%;padding:10px;overflow:auto}
+  .lista-pasos{max-height:170px;overflow:auto}
+  .paso{display:block;width:100%;margin:0 0 6px;padding:6px 8px;border:1px solid #2a323a;border-radius:6px;background:#1d252d;color:inherit;font:inherit;text-align:left;cursor:pointer}
+  .paso:hover{background:#26313b}
+  .paso.activo{border-color:#e0b341;background:#3a3320}
+  .paso-titulo{display:block;font-weight:700}
+  .paso-resumen{display:block;color:#9aa6b2;font-size:12px;margin-top:2px}
+  .fila-agregar{display:flex;flex-direction:column;gap:6px;margin:8px 0 12px}
+  .fila-agregar input,.campo-paso input,.campo-paso select{width:100%;box-sizing:border-box;padding:5px 6px;border:1px solid #2a323a;border-radius:6px;background:#0e1216;color:inherit;font:inherit}
+  .boton-agregar,.borrar-paso{padding:7px 10px;border:1px solid #e0b341;border-radius:6px;background:#3a3320;color:inherit;font:inherit;cursor:pointer}
+  .borrar-paso{border-color:#8a3a30;background:#2a1a18;margin-top:8px}
+  .campo-paso{display:block;margin:0 0 10px}
+  .campo-paso>*:last-child{margin-top:4px}
+  .resaltados{display:flex;flex-wrap:wrap;gap:4px}
+  .chip{padding:3px 8px;border:1px solid #e0b341;border-radius:12px;background:#3a3320;color:inherit;font:inherit;cursor:pointer}
+  #pasos h2{margin-top:12px}
   .nombre-modulo{font-weight:700;margin:4px 0}
   .detalle{color:#9aa6b2;margin:4px 0 12px}
   .param{display:block;margin:0 0 12px}
@@ -101,6 +118,7 @@ export class Editor {
   private motivoError: string | null = null;
 
   private readonly panel: PanelParametros;
+  private readonly pasos: PanelPasos;
   private readonly estadoCon: HTMLElement;
   private readonly ayuda: HTMLElement;
   private readonly botones = new Map<TipoModulo, HTMLButtonElement>();
@@ -129,8 +147,9 @@ export class Editor {
     this.ayuda = elemento('div', { id: 'ayuda' });
     this.centroEl = elemento('div', { id: 'centro' }, this.ayuda);
     this.vista3dEl = elemento('div', { id: 'vista3d' });
+    const pasosEl = elemento('div', { id: 'pasos' });
     const panelEl = elemento('div', { id: 'panel' });
-    const derecha = elemento('div', { id: 'derecha' }, this.vista3dEl, panelEl);
+    const derecha = elemento('div', { id: 'derecha' }, this.vista3dEl, pasosEl, panelEl);
     app.append(barra, catalogoEl, this.centroEl, derecha);
 
     crearAmbiente(this.escena, { mapaSombra: 1024 });
@@ -143,6 +162,14 @@ export class Editor {
     this.orbita = new OrbitControls(this.cam3d, this.rend3d.domElement);
 
     this.panel = new PanelParametros(panelEl, (id, params) => this.mandar({ op: 'params', id, params }));
+    this.pasos = new PanelPasos(pasosEl, {
+      enviar: (c) => this.conexion.enviar(c),
+      camara: () => ({
+        pos: [this.cam3d.position.x, this.cam3d.position.y, this.cam3d.position.z],
+        mira: [this.orbita.target.x, this.orbita.target.y, this.orbita.target.z],
+      }),
+    });
+    this.conectarClic3d(this.rend3d.domElement);
     this.actualizarAyuda();
 
     for (const el of [this.centroEl, this.vista3dEl]) {
@@ -188,6 +215,7 @@ export class Editor {
       this.escenaJson = json;
       void this.viva.aplicar(e.escena).then(() => habilitarSombras(this.viva.raiz));
     }
+    this.pasos.mostrar(e);
     if (this.metrosGrilla !== e.escena.metrosPorCelda) this.construirGrilla(e.escena.metrosPorCelda);
     if (this.sinEnmarcar) { this.sinEnmarcar = false; this.enmarcar(e.escena); }
 
@@ -362,6 +390,24 @@ export class Editor {
       if (id) return id;
     }
     return null;
+  }
+
+  /** Clic (sin arrastrar) en un módulo de la vista 3D: lo suma o lo quita de los resaltados del paso actual. */
+  private conectarClic3d(c: HTMLCanvasElement): void {
+    let abajo: { x: number; y: number } | null = null;
+    c.addEventListener('pointerdown', (ev) => { abajo = ev.button === 0 ? { x: ev.clientX, y: ev.clientY } : null; });
+    c.addEventListener('pointerup', (ev) => {
+      const a = abajo;
+      abajo = null;
+      if (!a || ev.button !== 0 || Math.hypot(ev.clientX - a.x, ev.clientY - a.y) > UMBRAL_ARRASTRE_PX) return;
+      const r = c.getBoundingClientRect();
+      const ndc = new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+      this.rayo.setFromCamera(ndc, this.cam3d);
+      for (const g of this.rayo.intersectObjects(this.viva.raiz.children, true)) {
+        const id = moduloDe(g.object);
+        if (id) { this.pasos.alternarModulo(id); return; }
+      }
+    });
   }
 
   private conectarEntrada(c: HTMLCanvasElement): void {

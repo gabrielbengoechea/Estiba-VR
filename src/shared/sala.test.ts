@@ -382,4 +382,11 @@ describe('pureza', () => {
     }
     expect(e.version).toBe(50);
   });
+
+  it('editarPaso con ficha undefined quita la ficha del paso', () => {
+    const e = crear();
+    const s = aplicarComando(e, { t: 'clase', op: { op: 'editarPaso', indice: 1, cambios: { ficha: undefined } } }, 1);
+    expect(s.clase.pasos[1].ficha).toBeUndefined();
+    expect(s.version).toBe(e.version + 1);
+  });
 });

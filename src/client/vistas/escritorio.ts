@@ -7,9 +7,10 @@ import type { EstadoSala, Vec3 } from '../../shared/tipos';
 import { ConexionSala } from '../red';
 import { configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
+import { GestorFichas } from '../clase/fichas';
 import { Reproductor } from '../clase/reproductor';
 import { iniciarXR } from './xr';
-import { comandoTraer, esLinkLocal, factorSuavizado, teclaAComando, urlAlumno } from './controlesDocente';
+import { comandoTraer, esLinkLocal, factorSuavizado, idFichaAlternada, teclaAComando, urlAlumno } from './controlesDocente';
 
 export type ModoEscritorio = 'proyector' | 'docente';
 
@@ -37,6 +38,7 @@ export class VistaEscritorio {
   readonly conexion: ConexionSala;
   /** Resaltado, aro y fichas; sin fundidos ni movimientos de cámara. */
   readonly reproductor: Reproductor;
+  private readonly fichas: GestorFichas;
 
   private controles: OrbitControls | null = null;
   private estado: EstadoSala | null = null;
@@ -61,7 +63,12 @@ export class VistaEscritorio {
 
     crearAmbiente(this.escena);
     this.escena.add(this.viva.raiz);
-    this.reproductor = new Reproductor({ escena: this.escena, viva: this.viva, camara: this.camara });
+    this.fichas = new GestorFichas(this.escena, this.viva, this.camara);
+    this.reproductor = new Reproductor({
+      escena: this.escena, viva: this.viva, camara: this.camara,
+      alCambiarFicha: (id) => this.fichas.abrir(id),
+      alCuadro: (dt, e) => this.fichas.cuadro(dt, e),
+    });
     this.camara.position.set(210, 95, 175);
     this.camara.lookAt(210, 5, -45);
     this.objetivoPos.copy(this.camara.position);
@@ -171,7 +178,7 @@ export class VistaEscritorio {
     if (this.modo === 'docente') {
       const res = nombre(e.resaltado);
       if (res) lineas.push(`Resaltado: ${res}`);
-      lineas.push('← → cambian de paso · clic resalta · M + clic: «miren acá» · T: traer a los alumnos');
+      lineas.push('← → cambian de paso · clic resalta · M + clic: «miren acá» · T: traer a los alumnos · F: ficha');
     }
     this.hud.replaceChildren(...lineas.map((l, i) => {
       const d = document.createElement('div');
@@ -218,6 +225,13 @@ export class VistaEscritorio {
     addEventListener('keydown', (ev) => {
       if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement) return;
       if (ev.key === 'm' || ev.key === 'M') { this.teclaM = true; return; }
+      if (ev.key === 'f' || ev.key === 'F') {
+        // Abre la ficha del paso actual, o la cierra si ya está abierta.
+        const e = this.estado;
+        const id = e ? idFichaAlternada(e.fichaAbierta, e.clase.pasos[e.paso]?.ficha) : null;
+        if (!ev.repeat && e && (id !== null || e.fichaAbierta !== null)) this.conexion.enviar({ t: 'ficha', id });
+        return;
+      }
       if (ev.key === 't' || ev.key === 'T') {
         if (ev.repeat) return;
         const dir = this.camara.getWorldDirection(new THREE.Vector3());
