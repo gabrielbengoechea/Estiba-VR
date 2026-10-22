@@ -7,6 +7,7 @@ import type { EstadoSala, Vec3 } from '../../shared/tipos';
 import { ConexionSala } from '../red';
 import { configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
+import { Reproductor } from '../clase/reproductor';
 import { comandoTraer, esLinkLocal, factorSuavizado, teclaAComando, urlAlumno } from './controlesDocente';
 
 export type ModoEscritorio = 'proyector' | 'docente';
@@ -33,6 +34,8 @@ export class VistaEscritorio {
   readonly camara = new THREE.PerspectiveCamera(55, 1, 0.3, 3000);
   readonly viva = new EscenaViva();
   readonly conexion: ConexionSala;
+  /** Resaltado, aro y fichas; sin fundidos ni movimientos de cámara. */
+  readonly reproductor: Reproductor;
 
   private controles: OrbitControls | null = null;
   private estado: EstadoSala | null = null;
@@ -56,6 +59,7 @@ export class VistaEscritorio {
 
     crearAmbiente(this.escena);
     this.escena.add(this.viva.raiz);
+    this.reproductor = new Reproductor({ escena: this.escena, viva: this.viva, camara: this.camara });
     this.camara.position.set(210, 95, 175);
     this.camara.lookAt(210, 5, -45);
     this.objetivoPos.copy(this.camara.position);
@@ -105,6 +109,7 @@ export class VistaEscritorio {
 
   private recibirEstado(e: EstadoSala): void {
     this.estado = e;
+    this.reproductor.aplicar(e);
     const json = JSON.stringify(e.escena);
     if (json !== this.escenaJson) {
       this.escenaJson = json;
@@ -266,6 +271,7 @@ export class VistaEscritorio {
       this.camara.position.lerp(this.objetivoPos, f);
       this.camara.quaternion.slerp(this.objetivoQuat, f);
     }
+    this.reproductor.cuadro(dt);
     this.renderer.render(this.escena, this.camara);
   }
 }

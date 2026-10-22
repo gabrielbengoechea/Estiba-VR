@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import type { EstadoSala } from '../../shared/tipos';
 import { configurarRenderer, crearAmbiente, habilitarSombras } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
-import { guinadaHacia } from './controlesDocente';
+import { Reproductor } from '../clase/reproductor';
 import { estadoEntrada, mostrarEntrada } from './entrada';
 import { mostrarError } from './errorVista';
 import { VistaEstereo } from './estereo';
@@ -134,12 +134,16 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   const viva = new EscenaViva();
   escena.add(viva.raiz);
   const cabeza = new THREE.PerspectiveCamera(80, ancho() / 2 / alto(), 0.1, 3000);
-  // Giro base que apunta el «frente» del alumno hacia la vista; el giroscopio se compone encima.
-  const base = new THREE.Quaternion();
-  const sensor = new THREE.Quaternion();
   let escenaJson = '';
-  let seqVisto = -1;
   const vista = new VistaEstereo(renderer);
+
+  // El reproductor mueve la cámara (con fundido), compone el giroscopio y dibuja resaltado, aro, flecha y etiquetas.
+  const reproductor = new Reproductor({ escena, viva, camara: cabeza, alumno: { app, orientacion } });
+
+  // Para depurar desde la consola: ?debug=1
+  if (new URLSearchParams(location.search).get('debug') === '1') {
+    (window as unknown as { __estiba: unknown }).__estiba = { reproductor, camara: cabeza, viva };
+  }
 
   const reticulas = crearReticulas();
   app.append(reticulas);
@@ -153,11 +157,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
       escenaJson = json;
       viva.aplicar(e.escena).then(() => habilitarSombras(viva.raiz)).catch((err) => console.error('No se pudo aplicar la escena', err));
     }
-    if (e.ubicacion.seq !== seqVisto) {
-      seqVisto = e.ubicacion.seq;
-      cabeza.position.set(...e.ubicacion.pos);
-      base.setFromAxisAngle(new THREE.Vector3(0, 1, 0), guinadaHacia(e.ubicacion.pos, e.ubicacion.mira));
-    }
+    reproductor.aplicar(e);
   });
   const medidor = new MedidorFps();
   let ultimoNumero = -Infinity;
@@ -181,10 +181,15 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   ajustar();
 
   // Tocar la pantalla (o el botón del Cardboard) recentra.
-  addEventListener('pointerdown', () => orientacion.recentrar());
+  const simular = new URLSearchParams(location.search).get('simular') === '1';
+  if (simular) simularGiroscopio(orientacion);
+  else addEventListener('pointerdown', () => orientacion.recentrar());
 
+  let tAnterior = -1;
   renderer.setAnimationLoop((t: number) => {
     try {
+      const dt = tAnterior < 0 ? 0 : Math.min((t - tAnterior) / 1000, 0.1);
+      tAnterior = t;
       if (mostrarFps) {
         medidor.cuadro(t);
         if (t - ultimoNumero >= 500) {
@@ -192,9 +197,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
           indicadores.fps(medidor.fps());
         }
       }
-      const [x, y, z, w] = orientacion.quat();
-      sensor.set(x, y, z, w);
-      cabeza.quaternion.copy(base).multiply(sensor);
+      reproductor.cuadro(dt);
       renderer.shadowMap.needsUpdate = true; // lo consume el primer ojo; el segundo reutiliza el mapa
       vista.render(escena, cabeza);
     } catch (e) {
@@ -202,5 +205,26 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
       console.error('Falló el dibujado', e);
       mostrarError(app);
     }
+  });
+}
+
+/**
+ * Solo para probar en escritorio (`?simular=1`): arrastrar con el mouse hace de giroscopio y la tecla R recentra.
+ * Manda eventos `deviceorientation` reales, así que se usa el mismo camino que un celular.
+ */
+function simularGiroscopio(orientacion: OrientacionAlumno): void {
+  let alpha = 0;
+  let beta = 90; // celular parado, mirando al frente
+  const mandar = () =>
+    window.dispatchEvent(new DeviceOrientationEvent('deviceorientation', { alpha, beta, gamma: 0 }));
+  mandar();
+  addEventListener('pointermove', (ev) => {
+    if (ev.buttons !== 1) return;
+    alpha = (alpha - ev.movementX * 0.3 + 360) % 360;
+    beta = Math.min(170, Math.max(10, beta - ev.movementY * 0.3));
+    mandar();
+  });
+  addEventListener('keydown', (ev) => {
+    if (ev.key === 'r' || ev.key === 'R') orientacion.recentrar();
   });
 }
