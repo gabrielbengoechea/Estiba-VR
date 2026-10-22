@@ -1,0 +1,24 @@
+# Blueprint de Render para Estiba. El equipo crea la cuenta y conecta el repositorio (ver README.md).
+services:
+  - type: web
+    name: estiba
+    runtime: node
+    plan: starter # el disco persistente exige un plan pago; en free las salas guardadas se pierden al reiniciar
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: ESTIBA_DETRAS_DE_PROXY
+        value: "1"
+      - key: ESTIBA_DATOS
+        value: /var/data
+      - key: ESTIBA_PIN
+        sync: false # secreto: se carga a mano en el panel de Render
+    disk:
+      name: estiba-datos
+      mountPath: /var/data # coincide con ESTIBA_DATOS (server/index.ts guarda ahí las salas)
+      sizeGB: 1

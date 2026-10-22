@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer } from 'ws';
 import { Salas, type OpcionesSalas } from './salas';
+import { ipCliente } from './ip';
 
 const TIPOS: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -43,7 +44,7 @@ export function crearServidor(opts: OpcionesSalas & { dirWeb: string }): Server 
   });
 
   const wss = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
-  wss.on('connection', (ws, req) => salas.conectar(ws, req.socket.remoteAddress));
+  wss.on('connection', (ws, req) => salas.conectar(ws, ipCliente(req)));
 
   http.on('upgrade', (req, socket, head) => {
     socket.on('error', () => { /* cliente que se fue: nada que hacer */ });
