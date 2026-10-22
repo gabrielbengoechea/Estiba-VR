@@ -144,6 +144,10 @@ export function enganchePartes(tramos: Tramo[], tipo: Enganche, t: number, fuera
 export const STS_SPREADER_REPOSO: Vec3 = [0, 20.1, 23];
 export const TRACTOR_CONTENEDOR: Vec3 = [8.4, 2.8, 0];
 export const TREN_CONTENEDOR: Vec3 = [25.7, 2.4, 0];
+/** Largo del tren (locomotora + 4 vagones) a lo largo de x, desde el frente. */
+export const TREN_LARGO = 77.2;
+/** Recorrido del tren al salir, hacia -x (su frente); la vía de terminal-a.json (x 140 a 400) lo cubre entero. */
+const TREN_RECORRIDO = 110;
 /** El buque llega desde el oeste (de proa) y desde el lado del agua. */
 const BUQUE_ENTRADA: Vec3 = [-240, 0, 25];
 /** Centro del contenedor apoyado en el tractor. */
@@ -235,10 +239,10 @@ function recorrido(e: Escena): Tramo[] {
   ];
 }
 
-/** Salida por tren: el contenedor viaja en el primer vagón y el tren parte hacia -x, que es su frente (25 s). */
+/** Salida por tren: el contenedor viaja en el primer vagón y el tren parte hacia -x, que es su frente (25 s; no se sale de la vía: ver la prueba). */
 function salida(e: Escena): Tramo[] {
   const inicio = local(e, 'tren-1', TREN_CONTENEDOR);
-  const fin = sumar(inicio, [-130, 0, 0]);
+  const fin = sumar(inicio, [-TREN_RECORRIDO, 0, 0]);
   return [
     { desde: inicio, hasta: inicio, duracion: 3 },
     { desde: inicio, hasta: fin, duracion: 22 },

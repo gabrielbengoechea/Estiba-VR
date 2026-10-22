@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Escena } from '../../shared/tipos';
-import { animaciones, enganchePartes, posicionEn, segundosDesde, type Tramo } from './animaciones';
+import { animaciones, enganchePartes, posicionEn, segundosDesde, TREN_CONTENEDOR, TREN_LARGO, type Tramo } from './animaciones';
 
 const dos: Tramo[] = [
   { desde: [0, 0, 0], hasta: [10, 0, 0], duracion: 10 },
@@ -146,6 +147,23 @@ describe('animaciones', () => {
     const vacia: Escena = { metrosPorCelda: 10, vistas: {}, modulos: [] };
     for (const id of ['atraque', 'descarga-ciclo', 'recorrido', 'salida'] as const) {
       expect(() => animaciones[id](vacia)).not.toThrow();
+    }
+  });
+});
+
+describe('salida del tren', () => {
+  it('el tren queda siempre dentro de la vía via-1 de la escena real', () => {
+    const real = JSON.parse(readFileSync('public/escenas/terminal-a.json', 'utf8')) as Escena;
+    const via = real.modulos.find((m) => m.id === 'via-1')!;
+    const x0 = via.celda[0] * real.metrosPorCelda;
+    const x1 = x0 + (via.params?.largo ?? 0) * real.metrosPorCelda;
+    const ts = animaciones.salida(real);
+    let t = 0;
+    for (const tr of ts) t += tr.duracion;
+    for (let s = 0; s <= t; s += 0.25) {
+      const frente = posicionEn(ts, s).pos[0] - TREN_CONTENEDOR[0];
+      expect(frente).toBeGreaterThanOrEqual(x0);
+      expect(frente + TREN_LARGO).toBeLessThanOrEqual(x1);
     }
   });
 });
