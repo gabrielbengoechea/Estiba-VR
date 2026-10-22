@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Escena } from '../../shared/tipos';
-import { animaciones, enganchePartes, posicionEn, segundosDesde, TREN_CONTENEDOR, TREN_LARGO, type Tramo } from './animaciones';
+import { ALTURA_FINAL, animaciones, enganchePartes, posicionEn, segundosDesde, TREN_CONTENEDOR, TREN_LARGO, type Tramo } from './animaciones';
 
 const dos: Tramo[] = [
   { desde: [0, 0, 0], hasta: [10, 0, 0], duracion: 10 },
@@ -167,3 +167,18 @@ describe('salida del tren', () => {
     }
   });
 });
+
+describe('reposo final', () => {
+  const real = JSON.parse(readFileSync('public/escenas/terminal-a.json', 'utf8')) as Escena;
+  it('lejos del final el contenedor está en un lugar de apoyo (o no hay contenedor)', () => {
+    const esperado = { atraque: null, 'descarga-ciclo': 6.5, recorrido: 1.3, salida: 2.4 };
+    for (const id of ['atraque', 'descarga-ciclo', 'recorrido', 'salida'] as const) {
+      expect(ALURA(id)).toBe(esperado[id]);
+      if (esperado[id] === null) continue;
+      const r = posicionEn(animaciones[id](real), 1e6);
+      expect(r.terminada).toBe(true);
+      expect(r.pos[1]).toBeCloseTo(esperado[id]!, 5);
+    }
+  });
+});
+const ALURA = (id: keyof typeof ALTURA_FINAL) => ALTURA_FINAL[id];

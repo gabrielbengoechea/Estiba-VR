@@ -152,6 +152,8 @@ const TREN_RECORRIDO = 110;
 const BUQUE_ENTRADA: Vec3 = [-240, 0, 25];
 /** Centro del contenedor apoyado en el tractor. */
 const ALTO_TRACTOR = 2.8;
+/** Centro de un contenedor apoyado en el suelo. */
+const ALTO_SUELO = 1.3;
 const ALTO_ARRIBA_STS = 34;
 const ALTO_ARRIBA_RTG = 14;
 /**
@@ -235,7 +237,8 @@ function recorrido(e: Escena): Tramo[] {
     { desde: carril, hasta: esquina, duracion: 7, enganche: 'tractor', giro: -Math.PI },
     { desde: esquina, hasta: lado, duracion: 5, enganche: 'tractor', giro: -Math.PI / 2 },
     { desde: lado, hasta: destino, duracion: 7, enganche: 'tractor', giro: 0 },
-    { desde: destino, hasta: destino, duracion: 3 },
+    // El tractor se va y el contenedor queda apoyado en el suelo del patio B (centro a media altura).
+    { desde: destino, hasta: [destino[0], ALTO_SUELO, destino[2]], duracion: 3 },
   ];
 }
 
@@ -266,13 +269,27 @@ interface Definicion {
   arrastra?: { id: string; desfase: Vec3 };
   tractor?: string;
   sts?: string;
+  /** Módulos sin los cuales no se dibuja el contenedor. */
+  requiere: string[];
 }
 
 const DEFINICIONES: Record<IdAnimacion, Definicion> = {
-  atraque: { contenedor: false, arrastra: { id: 'buque-1', desfase: [0, 0, 0] } },
-  'descarga-ciclo': { contenedor: true, tractor: 'tractor-1', sts: 'sts-2' },
-  recorrido: { contenedor: true, tractor: 'tractor-2' },
-  salida: { contenedor: true, arrastra: { id: 'tren-1', desfase: TREN_CONTENEDOR } },
+  atraque: { contenedor: false, requiere: [], arrastra: { id: 'buque-1', desfase: [0, 0, 0] } },
+  'descarga-ciclo': { contenedor: true, requiere: ['sts-2', 'rtg-1', 'patio-a'], tractor: 'tractor-1', sts: 'sts-2' },
+  recorrido: { contenedor: true, requiere: ['rtg-1', 'patio-a', 'patio-b'], tractor: 'tractor-2' },
+  salida: { contenedor: true, requiere: ['tren-1'], arrastra: { id: 'tren-1', desfase: TREN_CONTENEDOR } },
+};
+
+/**
+ * Lugar de reposo del contenedor al final de cada animación (la sala no borra `animacion` hasta que cambia el paso):
+ * apilado en el patio (descarga-ciclo), apoyado en el suelo (recorrido), sobre el vagón que sigue su camino (salida).
+ * `null`: no hay contenedor (atraque). Altura del centro, en m.
+ */
+export const ALTURA_FINAL: Record<IdAnimacion, number | null> = {
+  atraque: null,
+  'descarga-ciclo': ALTO_PILA,
+  recorrido: ALTO_SUELO,
+  salida: TREN_CONTENEDOR[1],
 };
 
 const COLOR_CONTENEDOR = PALETA.contenedores[5]; // naranja: se distingue de los de la escena
@@ -307,6 +324,7 @@ export class Animador {
   private readonly tocados = new Map<string, number>();
   private partes: PartesSts | null = null;
   private stsOculto = false;
+  private completa = true;
   private readonly p: Posicion = { pos: [0, 0, 0], tramo: 0, terminada: false, giro: 0 };
   private readonly a: Acople = { k: 0, pos: [0, 0, 0], giro: 0 };
 
@@ -340,19 +358,21 @@ export class Animador {
       this.escenaVista = e.escena;
       this.idVisto = id;
       this.tramos = animaciones[id](e.escena);
+      this.completa = def.requiere.every((m) => !!modulo(e.escena, m));
     }
     const t = segundosDesde(anim.inicio, this.ahoraServidor());
     const p = posicionEn(this.tramos, t, this.p);
     this.marca++;
 
-    this.caja.visible = def.contenedor;
-    if (def.contenedor) {
+    this.caja.visible = def.contenedor && this.completa;
+    if (this.caja.visible) {
       this.caja.position.set(p.pos[0], p.pos[1], p.pos[2]);
       this.caja.rotation.y = p.giro;
     }
     if (def.arrastra) this.arrastrar(e, def.arrastra.id, def.arrastra.desfase, p);
     if (def.tractor) this.moverTractor(e, def.tractor, t);
     if (def.sts) this.moverSts(e, def.sts, t);
+    else if (this.stsOculto) this.mostrarColgado(); // pasó de una animación con grúa a otra sin ella
     this.soltarSobrantes(e);
   }
 
@@ -433,6 +453,12 @@ export class Animador {
       );
     }
     this.tocados.set(id, this.marca);
+  }
+
+  private mostrarColgado(): void {
+    if (this.partes?.colgado) this.partes.colgado.visible = true;
+    if (this.partes && !this.explotando()) this.restaurarSts(this.partes);
+    this.stsOculto = false;
   }
 
   private buscarPartes(grua: THREE.Object3D): PartesSts {
