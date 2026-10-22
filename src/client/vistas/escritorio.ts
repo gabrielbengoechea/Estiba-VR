@@ -7,6 +7,7 @@ import type { EstadoSala, Vec3 } from '../../shared/tipos';
 import { ConexionSala } from '../red';
 import { configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
+import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
 import { Reproductor } from '../clase/reproductor';
 import { iniciarXR } from './xr';
@@ -39,6 +40,7 @@ export class VistaEscritorio {
   /** Resaltado, aro y fichas; sin fundidos ni movimientos de cámara. */
   readonly reproductor: Reproductor;
   private readonly fichas: GestorFichas;
+  private readonly animador: Animador;
 
   private controles: OrbitControls | null = null;
   private estado: EstadoSala | null = null;
@@ -64,10 +66,11 @@ export class VistaEscritorio {
     crearAmbiente(this.escena);
     this.escena.add(this.viva.raiz);
     this.fichas = new GestorFichas(this.escena, this.viva, this.camara);
+    this.animador = new Animador(this.escena, this.viva, () => this.conexion.reloj.ahoraServidor(), () => this.fichas.explotando);
     this.reproductor = new Reproductor({
       escena: this.escena, viva: this.viva, camara: this.camara,
       alCambiarFicha: (id) => this.fichas.abrir(id),
-      alCuadro: (dt, e) => this.fichas.cuadro(dt, e),
+      alCuadro: (dt, e) => { this.fichas.cuadro(dt, e); this.animador.cuadro(dt, e); },
     });
     this.camara.position.set(210, 95, 175);
     this.camara.lookAt(210, 5, -45);

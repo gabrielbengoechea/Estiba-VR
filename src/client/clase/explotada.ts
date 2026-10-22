@@ -85,6 +85,11 @@ export class VistaExplotada {
     this.f = nueva;
   }
 
+  /** Hay piezas desplazadas de su lugar (o a punto de estarlo). */
+  get activa(): boolean {
+    return this.f > 0 || this.abierta;
+  }
+
   private cambiarGrua(nueva: THREE.Object3D | undefined): void {
     this.soltar();
     this.grua = nueva ?? null;
@@ -110,7 +115,9 @@ export class VistaExplotada {
       etiqueta.raycast = () => undefined;
       etiqueta.sync();
       this.etiquetas.add(etiqueta);
-      this.piezas.set(nombre, { obj, base: obj.position.clone(), centro, etiqueta });
+      // `reposo` lo guarda el Animador la primera vez que mueve la pieza: así la base no se contamina con su desplazamiento.
+      const reposo = obj.userData.reposo as Vec3 | undefined;
+      this.piezas.set(nombre, { obj, base: reposo ? new THREE.Vector3(...reposo) : obj.position.clone(), centro, etiqueta });
     }
   }
 

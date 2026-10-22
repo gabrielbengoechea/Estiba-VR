@@ -172,6 +172,11 @@ export class GestorFichas {
     this.explotada = new VistaExplotada(escena, escala);
   }
 
+  /** La grúa STS resaltada está (o va) en vista explotada: sus piezas las mueve `VistaExplotada`. */
+  get explotando(): boolean {
+    return this.explotada.activa;
+  }
+
   /** Ficha nueva (o null para cerrar). Si llegan dos seguidas, gana la última. */
   abrir(id: string | null): void {
     const mio = ++this.token;

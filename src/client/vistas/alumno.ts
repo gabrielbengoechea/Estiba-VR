@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { EstadoSala } from '../../shared/tipos';
 import { configurarRenderer, crearAmbiente, habilitarSombras } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
+import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
 import { Reproductor } from '../clase/reproductor';
 import { estadoEntrada, mostrarEntrada } from './entrada';
@@ -91,7 +92,7 @@ function mostrarMotivo(app: HTMLElement, motivo: string): void {
   app.append(capa);
 }
 
-function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: EstadoSala) => void, alPose?: (p: PoseServidor) => void): void {
+function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: EstadoSala) => void, alPose?: (p: PoseServidor) => void): ConexionSala | null {
   const sala = new URLSearchParams(location.search).get('sala') ?? '';
   try {
     const conexion = new ConexionSala(sala, 'alumno');
@@ -102,8 +103,10 @@ function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: 
       indicadores.conexion(false);
       mostrarMotivo(app, motivo);
     });
+    return conexion;
   } catch (e) {
     console.warn('No se pudo abrir la conexión con la sala', e); // la escena sigue sin conexión
+    return null;
   }
 }
 
@@ -141,10 +144,13 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
 
   // El reproductor mueve la cámara (con fundido), compone el giroscopio y dibuja resaltado, aro, flecha y etiquetas.
   const fichas = new GestorFichas(escena, viva, cabeza, 'visor');
+  // Sin conexión no hay reloj del servidor: el reloj local sirve (no hay animación que sincronizar).
+  let ahoraServidor = () => Date.now();
+  const animador = new Animador(escena, viva, () => ahoraServidor(), () => fichas.explotando);
   const reproductor = new Reproductor({
     escena, viva, camara: cabeza, alumno: { app, orientacion },
     alCambiarFicha: (id) => fichas.abrir(id),
-    alCuadro: (dt, e) => fichas.cuadro(dt, e),
+    alCuadro: (dt, e) => { fichas.cuadro(dt, e); animador.cuadro(dt, e); },
   });
 
   // Para depurar desde la consola: ?debug=1
@@ -158,7 +164,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   const mostrarFps = new URLSearchParams(location.search).get('fps') === '1';
   const indicadores = crearIndicadores(mostrarFps);
   app.append(indicadores.capa);
-  conectarSala(app, indicadores, (e) => {
+  const conexion = conectarSala(app, indicadores, (e) => {
     const json = JSON.stringify(e.escena);
     if (json !== escenaJson) {
       escenaJson = json;
@@ -166,6 +172,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
     }
     reproductor.aplicar(e);
   }, (p) => reproductor.recibirPose(p));
+  if (conexion) ahoraServidor = () => conexion.reloj.ahoraServidor();
   const medidor = new MedidorFps();
   let ultimoNumero = -Infinity;
 
