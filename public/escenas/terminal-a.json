@@ -1,0 +1,11 @@
+{
+  "metrosPorCelda": 10,
+  "modulos": [
+    { "id": "muelle-1", "tipo": "muelle", "celda": [0, 0], "rot": 0, "nombre": "Muelle" },
+    { "id": "grua-1", "tipo": "grua-sts", "celda": [1, 0], "rot": 0, "nombre": "Grúa pórtico" }
+  ],
+  "vistas": {
+    "entrada": { "pos": [0, 1.6, 12], "mira": [10, 4, 0] },
+    "grua": { "pos": [10, 1.6, 14], "mira": [10, 10, 0] }
+  }
+}

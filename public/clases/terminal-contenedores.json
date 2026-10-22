@@ -1,0 +1,9 @@
+{
+  "id": "terminal-contenedores",
+  "titulo": "Terminal de contenedores",
+  "escena": "terminal-a",
+  "pasos": [
+    { "id": "paso-1", "titulo": "El muelle", "vista": "entrada", "resaltar": ["muelle-1"] },
+    { "id": "paso-2", "titulo": "La grúa pórtico", "vista": "grua", "resaltar": ["grua-1"] }
+  ]
+}
