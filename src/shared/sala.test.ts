@@ -130,12 +130,9 @@ describe('navegación de pasos', () => {
     expect(e.animacion).toBeNull();
   });
 
-  it('irA al paso actual lo vuelve a entrar (reinicia la animación)', () => {
+  it('irA al paso actual no hace nada (mismo objeto, sin repetir el fundido ni la animación)', () => {
     const e = aplicarComando(crear(), { t: 'irA', paso: 2 }, 10);
-    const r = aplicarComando(e, { t: 'irA', paso: 2 }, 50);
-    expect(r.version).toBe(e.version + 1);
-    expect(r.ubicacion.seq).toBe(e.ubicacion.seq + 1);
-    expect(r.animacion).toEqual({ id: 'descarga-ciclo', inicio: 50 });
+    expect(aplicarComando(e, { t: 'irA', paso: 2 }, 50)).toBe(e);
   });
 
   it('con una vista inexistente conserva la posición pero sube seq', () => {
@@ -320,6 +317,20 @@ describe('clase', () => {
     expect(s.escena.vistas.nueva).toEqual({ pos: [1, 1, 1], mira: [2, 2, 2] });
     expect(s.escena.vistas.general).toBe(e.escena.vistas.general);
     expect(s.version).toBe(e.version + 1);
+  });
+});
+
+describe('comandos desconocidos', () => {
+  it('un comando u operación desconocidos devuelven el mismo objeto', () => {
+    const e = crear();
+    const malos = [
+      { t: 'volar' },
+      { t: 'escena', op: { op: 'explotar', id: 'x' } },
+      { t: 'clase', op: { op: 'quemar' } },
+    ];
+    for (const c of malos) {
+      expect(aplicarComando(e, c as unknown as Comando, 1)).toBe(e);
+    }
   });
 });
 

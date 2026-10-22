@@ -49,6 +49,7 @@ function conVersion(e: EstadoSala, cambios: Partial<EstadoSala>): EstadoSala {
 
 function irAPaso(e: EstadoSala, indice: number, ahora: number): EstadoSala {
   if (!Number.isInteger(indice) || indice < 0 || indice >= e.clase.pasos.length) return e;
+  if (indice === e.paso) return e;
   return conVersion(e, entrarPaso(e.escena, e.clase, indice, e.ubicacion, e.ubicacion.seq + 1, ahora));
 }
 
@@ -85,6 +86,7 @@ function aplicarEscena(e: EstadoSala, o: OpEscena): EstadoSala {
         resaltado: e.resaltado === o.id ? null : e.resaltado,
       });
     }
+    default: return e;
   }
 }
 
@@ -123,6 +125,7 @@ function aplicarClase(e: EstadoSala, o: OpClase, ahora: number): EstadoSala {
     }
     case 'guardarVista':
       return conVersion(e, { escena: { ...e.escena, vistas: { ...e.escena.vistas, [o.id]: o.vista } } });
+    default: return e;
   }
 }
 
@@ -142,5 +145,6 @@ export function aplicarComando(e: EstadoSala, c: Comando, ahora: number): Estado
     case 'recentrar': return conVersion(e, { recentrar: e.recentrar + 1 });
     case 'escena': return aplicarEscena(e, c.op);
     case 'clase': return aplicarClase(e, c.op, ahora);
+    default: return e;
   }
 }
