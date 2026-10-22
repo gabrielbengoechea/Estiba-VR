@@ -7,7 +7,7 @@ import { Reproductor } from '../clase/reproductor';
 import { estadoEntrada, mostrarEntrada } from './entrada';
 import { mostrarError } from './errorVista';
 import { VistaEstereo } from './estereo';
-import { ConexionSala } from '../red';
+import { ConexionSala, type PoseServidor } from '../red';
 import { MedidorFps } from './medidorFps';
 import { OrientacionAlumno } from './orientacion';
 
@@ -90,11 +90,12 @@ function mostrarMotivo(app: HTMLElement, motivo: string): void {
   app.append(capa);
 }
 
-function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: EstadoSala) => void): void {
+function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: EstadoSala) => void, alPose?: (p: PoseServidor) => void): void {
   const sala = new URLSearchParams(location.search).get('sala') ?? '';
   try {
     const conexion = new ConexionSala(sala, 'alumno');
     conexion.alEstado(alEstado);
+    if (alPose) conexion.alPose(alPose);
     conexion.alCambioConexion((c) => indicadores.conexion(c));
     conexion.alError((motivo) => {
       indicadores.conexion(false);
@@ -158,7 +159,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
       viva.aplicar(e.escena).then(() => habilitarSombras(viva.raiz)).catch((err) => console.error('No se pudo aplicar la escena', err));
     }
     reproductor.aplicar(e);
-  });
+  }, (p) => reproductor.recibirPose(p));
   const medidor = new MedidorFps();
   let ultimoNumero = -Infinity;
 

@@ -8,6 +8,7 @@ import { ConexionSala } from '../red';
 import { configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
 import { Reproductor } from '../clase/reproductor';
+import { iniciarXR } from './xr';
 import { comandoTraer, esLinkLocal, factorSuavizado, teclaAComando, urlAlumno } from './controlesDocente';
 
 export type ModoEscritorio = 'proyector' | 'docente';
@@ -46,6 +47,7 @@ export class VistaEscritorio {
   private objetivoQuat = new THREE.Quaternion();
   private ultimaPoseMs = -Infinity;
   private teclaM = false;
+  private cuadroXR: (() => void) | null = null;
   private reloj = new THREE.Clock();
   private rayo = new THREE.Raycaster();
   private hud = crearPanel('left:16px;top:12px;max-width:60%;text-shadow:0 0 4px #000,0 0 4px #000');
@@ -82,6 +84,7 @@ export class VistaEscritorio {
         this.ultimaPoseMs = performance.now();
         this.objetivoPos.set(...p.cabeza.pos);
         this.objetivoQuat.set(...p.cabeza.quat);
+        this.reproductor.recibirPose(p);
       });
       this.armarQr(sala);
     } else {
@@ -90,6 +93,8 @@ export class VistaEscritorio {
       this.controles.target.set(210, 5, -45);
       this.controles.update();
       this.armarDocente();
+      // Solo el docente puede entrar en VR (Quest); en laptop el botón no aparece.
+      this.cuadroXR = iniciarXR(this.renderer, this.escena, this.conexion, this.viva, this.camara);
     }
 
     this.renderer.setAnimationLoop(() => this.cuadro());
@@ -253,7 +258,9 @@ export class VistaEscritorio {
 
   private cuadro(): void {
     const dt = this.reloj.getDelta();
-    if (this.modo === 'docente' && this.controles) {
+    if (this.renderer.xr.isPresenting) {
+      this.cuadroXR?.(); // en VR la cámara la mueve el visor: nada de OrbitControls ni pose de escritorio
+    } else if (this.modo === 'docente' && this.controles) {
       if (this.vuelo) {
         const v = this.vuelo;
         const k = Math.min(1, (performance.now() - v.t0) / (DURACION_VUELO_S * 1000));

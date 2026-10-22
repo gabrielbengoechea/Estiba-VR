@@ -7,6 +7,7 @@ import { PALETA } from '../../shared/colores';
 import { catalogo } from '../escena/catalogo';
 import { moduloDe } from '../escena/ambiente';
 import type { EscenaViva } from '../escena/construirEscena';
+import type { PoseServidor } from '../red';
 import { guinadaHacia } from '../vistas/controlesDocente';
 import type { OrientacionAlumno } from '../vistas/orientacion';
 import { actualizarPermanencia, anguloFlecha, dentroDelCono, type Permanencia } from './mirada';
@@ -23,6 +24,10 @@ export interface OpcionesReproductor {
 }
 
 const AMARILLO = new THREE.Color(PALETA.amarillo);
+const AZUL_DOCENTE = 0x2f6fdb;
+/** Sin pose del docente por más de esto, se oculta su cabeza y su rayo. */
+export const OCULTAR_POSE_MS = 2000;
+const LARGO_RAYO_MAX = 60;
 /** El rayo de la retícula se lanza 10 veces por segundo, no en cada cuadro. */
 const INTERVALO_MIRADA_S = 0.1;
 
@@ -63,6 +68,16 @@ export class Reproductor {
   private acumMirada = 0;
   private etiquetas: HTMLElement[] = [];
 
+  // Cabeza y rayo del docente (para los demás)
+  private cabezaDocente = new THREE.Group();
+  private rayoDocente!: THREE.Line;
+  private puntoDocente!: THREE.Mesh;
+  private poseDocente: PoseServidor | null = null;
+  private poseMs = -Infinity;
+  private poseNueva = false;
+  private puntaRayo = new THREE.Vector3();
+  private rayoCasteo = new THREE.Raycaster();
+
   constructor(private o: OpcionesReproductor) {
     this.cajaFondo = new THREE.Mesh(
       new THREE.BoxGeometry(1, 1, 1),
@@ -87,7 +102,71 @@ export class Reproductor {
     this.aro.raycast = () => undefined;
     o.escena.add(this.aro);
 
+    this.armarDocente(o.escena);
     if (o.alumno) this.armarCapas(o.alumno.app);
+  }
+
+  private armarDocente(escena: THREE.Scene): void {
+    const mat = new THREE.MeshBasicMaterial({ color: AZUL_DOCENTE });
+    const cabeza = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), mat);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.36, 0.3), new THREE.MeshBasicMaterial({ color: 0x0e1216 }));
+    visor.position.set(0, 0.15, -0.85); // la cara mira hacia -Z, como la cámara
+    this.cabezaDocente.add(cabeza, visor);
+    this.rayoDocente = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]),
+      new THREE.LineBasicMaterial({ color: AZUL_DOCENTE, depthTest: false }),
+    );
+    this.puntoDocente = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshBasicMaterial({ color: AZUL_DOCENTE, depthTest: false }));
+    for (const x of [this.cabezaDocente, cabeza, visor, this.rayoDocente, this.puntoDocente]) x.raycast = () => undefined;
+    this.rayoDocente.renderOrder = this.puntoDocente.renderOrder = 12;
+    this.rayoDocente.frustumCulled = false;
+    this.cabezaDocente.visible = this.rayoDocente.visible = this.puntoDocente.visible = false;
+    escena.add(this.cabezaDocente, this.rayoDocente, this.puntoDocente);
+  }
+
+  /** Pose del docente recibida de la sala (no se llama en la vista del propio docente). */
+  recibirPose(p: PoseServidor, ahoraMs: number = performance.now()): void {
+    this.poseDocente = p;
+    this.poseMs = ahoraMs;
+    this.poseNueva = true;
+  }
+
+  private actualizarDocente(): void {
+    const p = this.poseDocente;
+    const vivo = !!p && performance.now() - this.poseMs <= OCULTAR_POSE_MS;
+    this.cabezaDocente.visible = vivo;
+    if (!p || !vivo) {
+      this.rayoDocente.visible = this.puntoDocente.visible = false;
+      return;
+    }
+    const cam = this.o.camara.position;
+    const pos = new THREE.Vector3(...p.cabeza.pos);
+    // Tamaño real de cabeza (~0,12 m) que crece con la distancia para verse desde cualquier vista.
+    const k = Math.max(1, cam.distanceTo(pos) / 25);
+    this.cabezaDocente.position.copy(pos);
+    this.cabezaDocente.quaternion.set(...p.cabeza.quat);
+    this.cabezaDocente.scale.setScalar(0.16 * k);
+
+    if (!p.rayo) {
+      this.rayoDocente.visible = this.puntoDocente.visible = false;
+      return;
+    }
+    const origen = new THREE.Vector3(...p.rayo.origen);
+    const dir = new THREE.Vector3(...p.rayo.dir).normalize();
+    if (this.poseNueva) {
+      this.poseNueva = false;
+      this.rayoCasteo.set(origen, dir);
+      this.rayoCasteo.far = LARGO_RAYO_MAX;
+      const g = this.rayoCasteo.intersectObjects(this.o.viva.raiz.children, true)[0];
+      this.puntaRayo.copy(origen).addScaledVector(dir, g ? g.distance : LARGO_RAYO_MAX);
+      const attr = this.rayoDocente.geometry.getAttribute('position') as THREE.BufferAttribute;
+      attr.setXYZ(0, origen.x, origen.y, origen.z);
+      attr.setXYZ(1, this.puntaRayo.x, this.puntaRayo.y, this.puntaRayo.z);
+      attr.needsUpdate = true;
+    }
+    this.puntoDocente.position.copy(this.puntaRayo);
+    this.puntoDocente.scale.setScalar(0.08 * Math.max(1, cam.distanceTo(this.puntaRayo) / 25));
+    this.rayoDocente.visible = this.puntoDocente.visible = true;
   }
 
   private armarCapas(app: HTMLElement): void {
@@ -162,6 +241,7 @@ export class Reproductor {
       this.componerCamara();
     }
 
+    this.actualizarDocente();
     this.actualizarResaltado(e);
     this.actualizarAro(e);
     if (this.o.alumno) this.actualizarMirada(e, dt);
