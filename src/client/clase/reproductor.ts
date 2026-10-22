@@ -10,7 +10,7 @@ import type { EscenaViva } from '../escena/construirEscena';
 import { guinadaHacia } from '../vistas/controlesDocente';
 import type { OrientacionAlumno } from '../vistas/orientacion';
 import { actualizarPermanencia, anguloFlecha, dentroDelCono, type Permanencia } from './mirada';
-import { DURACION_FUNDIDO, opacidadFundido } from './transiciones';
+import { DURACION_FUNDIDO, pasoFundido } from './transiciones';
 
 export interface OpcionesReproductor {
   escena: THREE.Scene;
@@ -39,6 +39,7 @@ export class Reproductor {
 
   // Fundido
   private fundidoT = Infinity;
+  private opacidadVelo = 0;
   private pendiente: { pos: Vec3; mira: Vec3 } | null = null;
   private velo: HTMLElement | null = null;
   private base = new THREE.Quaternion();
@@ -150,16 +151,14 @@ export class Reproductor {
     const e = this.estado;
 
     if (this.o.alumno) {
-      if (this.fundidoT < DURACION_FUNDIDO) {
-        const antes = this.fundidoT;
-        this.fundidoT += dt;
-        const mitad = DURACION_FUNDIDO / 2;
-        if (this.pendiente && antes < mitad && this.fundidoT >= mitad) {
-          this.mover(this.pendiente.pos, this.pendiente.mira);
-          this.pendiente = null;
-        }
+      const paso = pasoFundido(this.fundidoT, dt);
+      this.fundidoT = paso.t;
+      this.opacidadVelo = paso.opacidad;
+      if (paso.moverAhora && this.pendiente) {
+        this.mover(this.pendiente.pos, this.pendiente.mira); // este cuadro se dibuja en negro total
+        this.pendiente = null;
       }
-      if (this.velo) this.velo.style.opacity = String(opacidadFundido(this.fundidoT));
+      if (this.velo) this.velo.style.opacity = String(this.opacidadVelo);
       this.componerCamara();
     }
 
