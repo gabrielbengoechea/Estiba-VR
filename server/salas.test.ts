@@ -2,7 +2,7 @@ import { mkdtempSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket, { WebSocketServer } from 'ws';
 import type { MsgServidor } from '../src/shared/protocolo';
 import type { Clase, Escena, EstadoSala } from '../src/shared/tipos';
@@ -89,10 +89,10 @@ let dir: string;
 let servidores: WebSocketServer[];
 let clientes: Cliente[];
 
-async function levantar(): Promise<number> {
-  const salas = new Salas({ pin: PIN, dirDatos: dir, contenidoPorDefecto: contenido });
+async function levantar(porDefecto: () => { escena: Escena; clase: Clase } = contenido): Promise<number> {
+  const salas = new Salas({ pin: PIN, dirDatos: dir, contenidoPorDefecto: porDefecto });
   const wss = new WebSocketServer({ port: 0, host: '127.0.0.1' });
-  wss.on('connection', (ws) => salas.conectar(ws));
+  wss.on('connection', (ws, req) => salas.conectar(ws, req.socket.remoteAddress));
   await new Promise<void>((ok) => wss.once('listening', () => ok()));
   servidores.push(wss);
   return (wss.address() as AddressInfo).port;
@@ -361,5 +361,33 @@ describe('Salas', () => {
     const p = await levantar();
     const a = await unir(p, 'alumno', '7777');
     expect((await a.estado()).escena.modulos).toHaveLength(2);
+  });
+
+  it('tras 5 PIN malos desde la misma dirección, el sexto con PIN correcto también se rechaza', async () => {
+    const p = await levantar();
+    for (let i = 0; i < 5; i += 1) {
+      const c = await unir(p, 'docente', '1111', `000${i}`);
+      const err = await c.esperar((m): m is Extract<MsgServidor, { t: 'error' }> => m.t === 'error');
+      expect(err.motivo).toBe('PIN incorrecto');
+      await c.esperarCierre();
+    }
+    const sexto = await unir(p, 'editor', '1111', PIN);
+    const err = await sexto.esperar((m): m is Extract<MsgServidor, { t: 'error' }> => m.t === 'error');
+    expect(err.motivo).toBe('Demasiados intentos, esperá un minuto');
+    await sexto.esperarCierre();
+    expect(sexto.estados()).toHaveLength(0);
+    // Los alumnos no usan PIN y no se ven afectados.
+    const alumno = await unir(p, 'alumno');
+    await alumno.estado();
+  });
+
+  it('si no se puede crear la sala responde No se pudo abrir la sala y cierra', async () => {
+    const silencio = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const p = await levantar(() => { throw new Error('contenido roto'); });
+    const a = await unir(p, 'alumno');
+    const err = await a.esperar((m): m is Extract<MsgServidor, { t: 'error' }> => m.t === 'error');
+    expect(err.motivo).toBe('No se pudo abrir la sala');
+    await a.esperarCierre();
+    silencio.mockRestore();
   });
 });

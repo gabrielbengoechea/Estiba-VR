@@ -1,4 +1,5 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { join } from 'node:path';
 import type { RawData, WebSocket } from 'ws';
 import { leerMsgCliente, type MsgServidor } from '../src/shared/protocolo';
@@ -14,6 +15,13 @@ export interface OpcionesSalas {
 export const MAX_CONEXIONES_POR_SALA = 40;
 const CODIGO_SALA = /^\d{4}$/;
 const ABIERTO = 1; // WebSocket.OPEN
+const MAX_INTENTOS_PIN = 5;
+const VENTANA_PIN_MS = 60_000;
+
+function pinCorrecto(dado: string | undefined, real: string): boolean {
+  const h = (t: string): Buffer => createHash('sha256').update(t).digest();
+  return dado !== undefined && timingSafeEqual(h(dado), h(real));
+}
 
 interface Sala {
   codigo: string;
@@ -40,11 +48,12 @@ function contenidoValido(x: unknown): x is { escena: Escena; clase: Clase } {
 
 export class Salas {
   private readonly salas = new Map<string, Sala>();
+  private readonly fallosPin = new Map<string, number[]>();
 
   constructor(private readonly opts: OpcionesSalas) {}
 
   /** Atiende una conexión nueva: el primer mensaje válido debe ser `unirse`. */
-  conectar(ws: WebSocket): void {
+  conectar(ws: WebSocket, ip = 'desconocida'): void {
     let sala: Sala | null = null;
     let rol: Rol = 'alumno';
 
@@ -55,7 +64,7 @@ export class Salas {
         const msg = esBinario ? null : leerMsgCliente(data.toString());
         if (!sala) {
           if (!msg || msg.t !== 'unirse') { rechazar(ws, 'Primero hay que unirse a una sala'); return; }
-          sala = this.unirse(ws, msg.sala, msg.rol, msg.pin);
+          sala = this.unirse(ws, ip, msg.sala, msg.rol, msg.pin);
           rol = msg.rol;
           return;
         }
@@ -67,13 +76,31 @@ export class Salas {
     });
   }
 
-  private unirse(ws: WebSocket, codigo: string, rol: Rol, pin: string | undefined): Sala | null {
+  private unirse(ws: WebSocket, ip: string, codigo: string, rol: Rol, pin: string | undefined): Sala | null {
     if (!CODIGO_SALA.test(codigo)) { rechazar(ws, 'El código de sala debe tener 4 dígitos'); return null; }
-    if ((rol === 'docente' || rol === 'editor') && pin !== this.opts.pin) {
-      rechazar(ws, 'PIN incorrecto');
+    if (rol === 'docente' || rol === 'editor') {
+      const ahora = Date.now();
+      const fallos = (this.fallosPin.get(ip) ?? []).filter((t) => ahora - t < VENTANA_PIN_MS);
+      if (fallos.length >= MAX_INTENTOS_PIN) {
+        this.fallosPin.set(ip, fallos);
+        rechazar(ws, 'Demasiados intentos, esperá un minuto');
+        return null;
+      }
+      if (!pinCorrecto(pin, this.opts.pin)) {
+        fallos.push(ahora);
+        this.fallosPin.set(ip, fallos);
+        rechazar(ws, 'PIN incorrecto');
+        return null;
+      }
+    }
+    let sala: Sala;
+    try {
+      sala = this.obtener(codigo);
+    } catch (err) {
+      console.error(`No se pudo abrir la sala ${codigo}:`, err);
+      rechazar(ws, 'No se pudo abrir la sala');
       return null;
     }
-    const sala = this.obtener(codigo);
     if (sala.conexiones.size >= MAX_CONEXIONES_POR_SALA) { rechazar(ws, 'Sala llena'); return null; }
     sala.conexiones.set(ws, rol);
     enviar(ws, this.msgEstado(sala));
