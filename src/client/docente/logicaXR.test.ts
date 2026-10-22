@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DetectorFlanco, Gatillo, HOLD_MS, empaquetarPose } from './logicaXR';
+import * as THREE from 'three';
+import { DetectorFlanco, Gatillo, HOLD_MS, empaquetarPose, poseMundo } from './logicaXR';
 
 describe('DetectorFlanco', () => {
   it('dispara una vez al pasar de false a true y no repite mientras se mantiene', () => {
@@ -51,5 +52,21 @@ describe('empaquetarPose', () => {
   it('sin control o con dirección nula manda rayo null', () => {
     expect(empaquetarPose([0, 0, 0], [0, 0, 0, 1], null, null).rayo).toBeNull();
     expect(empaquetarPose([0, 0, 0], [0, 0, 0, 1], [0, 0, 0], [0, 0, 0]).rayo).toBeNull();
+  });
+});
+
+describe('poseMundo', () => {
+  it('compone el dolly (100,0,-40, giro 90° en Y) con la cámara local (0,1.6,0)', () => {
+    const dq = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+    const dolly = new THREE.Matrix4().compose(new THREE.Vector3(100, 0, -40), dq, new THREE.Vector3(1, 1, 1));
+    const cam = new THREE.Matrix4().makeTranslation(0, 1.6, 0);
+    const r = poseMundo(dolly.elements, cam.elements);
+    expect(r.pos[0]).toBeCloseTo(100);
+    expect(r.pos[1]).toBeCloseTo(1.6);
+    expect(r.pos[2]).toBeCloseTo(-40);
+    expect(r.quat[0]).toBeCloseTo(dq.x);
+    expect(r.quat[1]).toBeCloseTo(dq.y);
+    expect(r.quat[2]).toBeCloseTo(dq.z);
+    expect(r.quat[3]).toBeCloseTo(dq.w);
   });
 });

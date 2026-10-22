@@ -1,4 +1,5 @@
 // Lógica pura del docente en VR (sin three ni WebXR), para poder probarla sin visor.
+import * as THREE from 'three';
 import type { Vec3 } from '../../shared/tipos';
 
 /** Mantener el gatillo este tiempo sobre un punto manda «Miren acá». */
@@ -54,4 +55,13 @@ export function empaquetarPose(
     if (n > 1e-9) rayo = { origen: [...rayoOrigen], dir: [rayoDir[0] / n, rayoDir[1] / n, rayoDir[2] / n] };
   }
   return { cabeza: { pos: [...cabezaPos], quat: [...cabezaQuat] }, rayo };
+}
+
+/** Pose en el mundo de la cabeza: matriz del dolly × matriz local de la cámara XR (ambas column-major, 16 números). */
+export function poseMundo(dolly: ArrayLike<number>, cam: ArrayLike<number>): { pos: Vec3; quat: [number, number, number, number] } {
+  const m = new THREE.Matrix4().fromArray(Array.from(dolly)).multiply(new THREE.Matrix4().fromArray(Array.from(cam)));
+  const p = new THREE.Vector3();
+  const q = new THREE.Quaternion();
+  m.decompose(p, q, new THREE.Vector3());
+  return { pos: [p.x, p.y, p.z], quat: [q.x, q.y, q.z, q.w] };
 }

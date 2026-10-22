@@ -5,7 +5,7 @@ import type { Vec3 } from '../../shared/tipos';
 import type { ConexionSala } from '../red';
 import type { EscenaViva } from '../escena/construirEscena';
 import { Puntero } from '../docente/puntero';
-import { BOTON_A, BOTON_B, DetectorFlanco, Gatillo, empaquetarPose } from '../docente/logicaXR';
+import { BOTON_A, BOTON_B, DetectorFlanco, Gatillo, empaquetarPose, poseMundo } from '../docente/logicaXR';
 
 const LARGO_RAYO = 6;
 const IND_GATILLO = 0;
@@ -76,12 +76,15 @@ export function iniciarXR(
   boton.addEventListener('click', async () => {
     if (sesion) return;
     boton.disabled = true;
+    // Se guarda antes de pedir la sesión; si falla, la cámara de escritorio no se toca.
+    guardada.pos.copy(camara.position);
+    guardada.quat.copy(camara.quaternion);
+    let iniciada = false;
     try {
       const s = await navigator.xr!.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
       sesion = s;
+      iniciada = true;
       // El docente entra parado en el piso, justo debajo de donde estaba su cámara de escritorio.
-      guardada.pos.copy(camara.position);
-      guardada.quat.copy(camara.quaternion);
       dolly.position.set(camara.position.x, 0, camara.position.z);
       dolly.add(camara);
       camara.position.set(0, 0, 0);
@@ -91,8 +94,8 @@ export function iniciarXR(
       boton.style.display = 'none';
     } catch (err) {
       console.error('No se pudo iniciar la sesión de VR', err);
-      alTerminar();
-      boton.textContent = 'No se pudo entrar en VR. Tocá para reintentar';
+      if (iniciada) alTerminar();
+      boton.textContent = 'No se pudo entrar en VR.';
     } finally {
       boton.disabled = false;
     }
@@ -102,8 +105,6 @@ export function iniciarXR(
     .then((ok) => { if (ok) boton.style.display = 'block'; })
     .catch(() => undefined);
 
-  const pos = new THREE.Vector3();
-  const quat = new THREE.Quaternion();
   const quatCtrl = new THREE.Quaternion();
   const origen = new THREE.Vector3();
   const dir = new THREE.Vector3();
@@ -111,9 +112,9 @@ export function iniciarXR(
   return () => {
     if (!renderer.xr.isPresenting) return;
 
-    const xrCam = renderer.xr.getCamera();
-    xrCam.getWorldPosition(pos);
-    xrCam.getWorldQuaternion(quat);
+    // La cámara XR no tiene padre: su matriz es local al piso; se compone a mano con la del dolly.
+    dolly.updateMatrixWorld();
+    const cabeza = poseMundo(dolly.matrixWorld.elements, renderer.xr.getCamera().matrix.elements);
 
     let o: Vec3 | null = null;
     let d: Vec3 | null = null;
@@ -124,7 +125,7 @@ export function iniciarXR(
       o = [origen.x, origen.y, origen.z];
       d = [dir.x, dir.y, dir.z];
     }
-    conexion.enviarPose(empaquetarPose([pos.x, pos.y, pos.z], [quat.x, quat.y, quat.z, quat.w], o, d));
+    conexion.enviarPose(empaquetarPose(cabeza.pos, cabeza.quat, o, d));
 
     const botones = fuentes.get(derecho)?.gamepad?.buttons;
     if (!botones) return;
