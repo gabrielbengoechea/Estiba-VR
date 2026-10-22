@@ -102,7 +102,7 @@ export class Reproductor {
     this.aro.renderOrder = 11;
     this.aro.visible = false;
     this.aro.raycast = () => undefined;
-    o.escena.add(this.aro);
+    o.viva.raiz.add(this.aro); // coordenadas de terminal: en AR la maqueta lo escala con todo
 
     this.armarDocente(o.escena);
     if (o.alumno) this.armarCapas(o.alumno.app);
@@ -260,7 +260,7 @@ export class Reproductor {
     const visible = !this.caja.isEmpty();
     this.cajaFondo.visible = this.cajaBorde.visible = visible;
     if (!visible) return;
-    this.caja.getSize(this.tamano).addScalar(0.4);
+    this.caja.getSize(this.tamano).addScalar(0.4 * this.o.viva.raiz.scale.x); // el relleno es de 0,4 m de la terminal, no del mundo
     this.caja.getCenter(this.centro);
     for (const x of [this.cajaFondo, this.cajaBorde]) {
       x.position.copy(this.centro);
@@ -279,19 +279,25 @@ export class Reproductor {
       return;
     }
     const cam = this.o.camara;
+    const raiz = this.o.viva.raiz;
+    raiz.updateWorldMatrix(true, false);
+    // El aro es hijo de la raíz de la terminal: `p` es de terminal y la cámara se pasa a esas mismas coordenadas, así que
+    // la distancia sale en metros de terminal (dividida por la escala de la maqueta) y el aro crece o achica con ella.
+    const camLocal = raiz.worldToLocal(cam.position.clone());
     const punto = new THREE.Vector3(...p);
     // El aro está parado sobre el punto y mira siempre hacia quien lo ve (visible incluso a la altura de los ojos);
     // crece con la distancia para que se vea desde cualquier vista.
-    const base = Math.max(2.5, cam.position.distanceTo(punto) / 12);
+    const base = Math.max(2.5, camLocal.distanceTo(punto) / 12);
     const escala = base * (1 + 0.2 * (0.5 + 0.5 * Math.sin(this.t * 6)));
     this.aro.position.set(p[0], p[1] + base, p[2]);
-    this.aro.rotation.y = Math.atan2(cam.position.x - p[0], cam.position.z - p[2]);
+    this.aro.rotation.y = Math.atan2(camLocal.x - p[0], camLocal.z - p[2]);
     this.aro.scale.setScalar(escala);
     (this.aro.material as THREE.MeshBasicMaterial).opacity = 0.6 + 0.4 * (0.5 + 0.5 * Math.cos(this.t * 6));
     this.aro.visible = true;
 
     if (!this.o.alumno) return;
     cam.updateMatrixWorld();
+    raiz.localToWorld(punto); // a coordenadas del mundo, como la cámara
     const hacia = punto.clone().sub(cam.position);
     const frente = cam.getWorldDirection(new THREE.Vector3());
     const afuera = !dentroDelCono(frente.toArray() as Vec3, hacia.toArray() as Vec3);

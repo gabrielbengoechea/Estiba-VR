@@ -1,6 +1,6 @@
 // Maqueta en la mesa (AR): la terminal entera a escala 1:400 sobre una mesa real, vista con passthrough.
 // Es la misma escena: solo se escala y se mueve la raíz de la terminal y se esconden agua, cielo, niebla y suelo.
-// El proyector sigue mostrando la vista normal (la última pose que mandó el docente): no se le manda nada en AR.
+// El proyector sigue mostrando la vista normal: en AR se le manda la pose del docente ya convertida a coordenadas reales de la terminal.
 import * as THREE from 'three';
 import type { Vec3 } from '../../shared/tipos';
 import type { EscenaViva } from '../escena/construirEscena';

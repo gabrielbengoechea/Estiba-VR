@@ -202,7 +202,11 @@ export class GestorFichas {
     const obj = modulo ? this.viva.objeto(modulo.id) : undefined;
     const pedida = this.ficha?.explotada === 'grua-sts' && modulo?.tipo === 'grua-sts';
     this.explotada.actualizar(modulo?.tipo === 'grua-sts' ? obj : undefined, !!pedida && !!this.panel, dt, this.camara);
-    if (this.panel) this.colocar(obj);
+    if (this.panel) {
+      // En la maqueta AR (raíz escalada) el panel del docente taparía la vista: ahí no se muestra.
+      if (this.viva.raiz.scale.x !== 1) this.panel.visible = false;
+      else this.colocar(obj);
+    }
   }
 
   /** Al costado del módulo (según se lo ve), a la altura de los ojos si el módulo es alto; sin módulo, al frente. */
