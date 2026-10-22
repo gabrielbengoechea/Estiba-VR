@@ -9,6 +9,10 @@ const rol: Rol = rolParam && ROLES.includes(rolParam) ? rolParam : 'alumno';
 
 const app = document.getElementById('app');
 if (app) {
-  app.textContent = rol;
   app.dataset.sala = sala;
+  if (rol === 'alumno') {
+    void import('./vistas/alumnoProvisorio').then((m) => m.iniciarAlumno(app));
+  } else {
+    app.textContent = rol;
+  }
 }
