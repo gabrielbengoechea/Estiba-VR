@@ -12,6 +12,7 @@ import { VistaEstereo } from './estereo';
 import { ConexionSala, type PoseServidor } from '../red';
 import { MedidorFps } from './medidorFps';
 import { OrientacionAlumno } from './orientacion';
+import { opcionesRendimiento } from './opcionesAlumno';
 
 const ancho = () => document.documentElement.clientWidth;
 const alto = () => document.documentElement.clientHeight;
@@ -127,7 +128,9 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
 
   const renderer = new THREE.WebGLRenderer({ antialias: true }); // lanza si no hay WebGL
   configurarRenderer(renderer);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const rendimiento = opcionesRendimiento(location.search);
+  if (!rendimiento.sombras) renderer.shadowMap.enabled = false; // ?sombras=0: para celulares lentos
+  renderer.setPixelRatio(Math.min(devicePixelRatio, rendimiento.pixelRatioMax));
   renderer.setSize(ancho(), alto(), false);
   renderer.domElement.style.cssText = 'display:block;width:100%;height:100%';
   app.append(renderer.domElement);

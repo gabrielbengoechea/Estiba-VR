@@ -9,7 +9,10 @@ const rolParam = params.get('rol') as Rol | null;
 const rol: Rol = rolParam && ROLES.includes(rolParam) ? rolParam : 'alumno';
 
 const app = document.getElementById('app');
-if (app) {
+// ?rol=editor desde la portada: se pasa al editor conservando sala y pin.
+if (rolParam === 'editor') {
+  location.replace(`/editor.html${location.search}`);
+} else if (app) {
   app.dataset.sala = sala;
   if (rol === 'alumno') {
     // Si el módulo no carga (red, caché vieja), el alumno ve un mensaje, nunca una pantalla en blanco.
