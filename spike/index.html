@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Estiba · prueba de estilo</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #cfdde8; font-family: system-ui, sans-serif; }
+  #hud { position: fixed; left: 12px; top: 10px; font: 600 13px system-ui; color: #13202c; background: rgba(255,255,255,.8); padding: 6px 10px; border-radius: 4px; }
+  #hud a { margin-right: 10px; color: #1c5da3; }
+  .reticle { position: fixed; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 2.5px solid #fff; border-radius: 50%; display: none; }
+  body.stereo .reticle { display: block; }
+  body.stereo #hud { display: none; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="hud"><a href="#general">General</a><a href="#grua">Al pie de la grúa</a><a href="#patio">Sobre el patio</a><a href="#buque">Buque</a><a href="#cardboard">Cardboard</a></div>
+<div class="reticle" style="left:25%"></div><div class="reticle" style="left:75%"></div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#cfdde8');
+scene.fog = new THREE.Fog('#cfdde8', 380, 1200);
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.3, 3000);
+const controls = new OrbitControls(camera, renderer.domElement);
+
+scene.add(new THREE.HemisphereLight('#eef4ff', '#857a6c', 1.5));
+const sun = new THREE.DirectionalLight('#fff2dc', 2.8);
+sun.position.set(-170, 230, 150);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+Object.assign(sun.shadow.camera, { left: -230, right: 230, top: 230, bottom: -230, near: 10, far: 900 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.3;
+scene.add(sun);
+
+const std = (color, rough = 0.9) => new THREE.MeshStandardMaterial({ color, roughness: rough });
+const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m; };
+
+const water = add(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: '#3d6c8c', roughness: 0.3, metalness: 0.1 }), 0, 0, 0);
+water.rotation.x = -Math.PI / 2;
+add(new THREE.BoxGeometry(700, 3, 263), std('#b9bdc1'), 0, 1.5, -128.5);          // muelle
+add(new THREE.BoxGeometry(150, 0.05, 40), std('#8d939a'), 0, 3.02, -66);          // pavimento del patio
+add(new THREE.BoxGeometry(700, 0.06, 0.5), std('#e2b21a'), 0, 3.03, 2.4);         // borde del muelle
+for (const z of [0, -30.5]) add(new THREE.BoxGeometry(700, 0.08, 0.35), std('#3a3f45', 0.5), 0, 3.04, z); // rieles
+
+const loader = new GLTFLoader();
+const load = (f) => new Promise((ok) => loader.load(`assets/${f}`, (g) => ok(g.scene)));
+const [sts, patio, buque, tractor] = await Promise.all(['sts.glb', 'patio.glb', 'buque.glb', 'tractor.glb'].map(load));
+const place = (obj, x, y, z, ry = 0) => {
+  obj.position.set(x, y, z); obj.rotation.y = ry;
+  obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(obj); return obj;
+};
+for (const x of [-70, 0, 70]) place(x === -70 ? sts : sts.clone(), x, 3, 0);
+place(buque, -100, 0, 22);
+place(patio, -65, 3, -58);
+place(tractor, -3, 3, -15);
+place(tractor.clone(), 25, 3, -54.5);
+
+const views = {
+  general: { pos: [-150, 95, 150], target: [0, 8, -25] },
+  grua:    { pos: [36, 4.7, -14], target: [5, 26, 22] },
+  patio:   { pos: [42, 31, -22], target: [-8, 3, -70] },
+  buque:   { pos: [160, 26, 95], target: [10, 18, 20] },
+  cardboard: { pos: [36, 4.7, -14], target: [5, 22, 22], stereo: true },
+};
+const stereo = new THREE.StereoCamera();
+stereo.eyeSep = 0.064;
+let isStereo = false;
+function applyView() {
+  const v = views[location.hash.slice(1)] || views.general;
+  isStereo = !!v.stereo;
+  document.body.classList.toggle('stereo', isStereo);
+  camera.position.set(...v.pos);
+  controls.target.set(...v.target);
+  camera.fov = isStereo ? 80 : 55;
+  resize();
+  controls.update();
+}
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = (isStereo ? innerWidth / 2 : innerWidth) / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('hashchange', applyView);
+addEventListener('resize', resize);
+applyView();
+
+renderer.setAnimationLoop(() => {
+  controls.update();
+  const w = innerWidth, h = innerHeight;
+  if (!isStereo) { renderer.setScissorTest(false); renderer.setViewport(0, 0, w, h); renderer.render(scene, camera); return; }
+  camera.updateMatrixWorld();
+  stereo.update(camera);
+  renderer.setScissorTest(true);
+  renderer.setScissor(0, 0, w / 2, h); renderer.setViewport(0, 0, w / 2, h); renderer.render(scene, stereo.cameraL);
+  renderer.setScissor(w / 2, 0, w / 2, h); renderer.setViewport(w / 2, 0, w / 2, h); renderer.render(scene, stereo.cameraR);
+});
+window.__ready = true;
+</script>
+</body>
+</html>
