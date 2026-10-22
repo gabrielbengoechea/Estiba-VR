@@ -305,6 +305,15 @@ interface PartesSts {
   colgado?: THREE.Object3D;
 }
 
+/**
+ * ¿Se esconde el contenedor colgado del modelo de la grúa? Solo si la animación conduce de verdad la grúa este cuadro
+ * y se dibuja el contenedor animado; en cualquier otro caso (otra animación, grúa ausente o explotada, módulo clave
+ * faltante) tiene que verse, para no dejar la grúa sin contenedor y sin reemplazo.
+ */
+export function ocultarColgado(grúaConducida: boolean, cajaVisible: boolean): boolean {
+  return grúaConducida && cajaVisible;
+}
+
 /** Posición de reposo de una pieza de la grúa: se guarda una vez (`VistaExplotada` también la usa como base). */
 function reposo(o: THREE.Object3D): Vec3 {
   return (o.userData.reposo ??= o.position.toArray()) as Vec3;
@@ -371,8 +380,9 @@ export class Animador {
     }
     if (def.arrastra) this.arrastrar(e, def.arrastra.id, def.arrastra.desfase, p);
     if (def.tractor) this.moverTractor(e, def.tractor, t);
-    if (def.sts) this.moverSts(e, def.sts, t);
-    else if (this.stsOculto) this.mostrarColgado(); // pasó de una animación con grúa a otra sin ella
+    const conducida = !!def.sts && this.moverSts(e, def.sts, t);
+    if (ocultarColgado(conducida, this.caja.visible)) this.ocultarColgado();
+    else if (this.stsOculto) this.mostrarColgado(); // otra animación sin grúa, grúa ausente o explotada, o sin contenedor animado
     this.soltarSobrantes(e);
   }
 
@@ -411,19 +421,17 @@ export class Animador {
    * Grúa STS: el carro (y la cabina que cuelga de él) corren por la pluma y el spreader sigue al contenedor.
    * Si la grúa está en vista explotada no se toca nada: `VistaExplotada` es la dueña de sus piezas en ese momento.
    */
-  private moverSts(e: EstadoSala, id: string, t: number): void {
+  private moverSts(e: EstadoSala, id: string, t: number): boolean {
     const obj = this.viva.objeto(id);
     const mod = modulo(e.escena, id);
-    if (!obj || !mod) return;
+    if (!obj || !mod) return false;
     if (this.partes?.grua !== obj) this.partes = this.buscarPartes(obj);
     const pt = this.partes!;
-    if (this.explotando()) return;
-    // El contenedor colgado del modelo se esconde mientras corre la animación: el animado hace de contenedor del spreader.
-    if (pt.colgado && pt.colgado.visible) { pt.colgado.visible = false; this.stsOculto = true; }
+    if (this.explotando()) return false;
     const a = enganchePartes(this.tramos, 'spreader-sts', t, this.a);
     if (a.k <= 0) {
       this.restaurarSts(pt);
-      return;
+      return true;
     }
     // Posición del contenedor en el espacio local de la grúa (rotación inversa de la grúa).
     const m = e.escena.metrosPorCelda;
@@ -453,6 +461,13 @@ export class Animador {
       );
     }
     this.tocados.set(id, this.marca);
+    return true;
+  }
+
+  /** El contenedor colgado del modelo se esconde mientras el animado hace de contenedor del spreader. */
+  private ocultarColgado(): void {
+    const c = this.partes?.colgado;
+    if (c && c.visible) { c.visible = false; this.stsOculto = true; }
   }
 
   private mostrarColgado(): void {

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Escena } from '../../shared/tipos';
-import { ALTURA_FINAL, animaciones, enganchePartes, posicionEn, segundosDesde, TREN_CONTENEDOR, TREN_LARGO, type Tramo } from './animaciones';
+import { ALTURA_FINAL, animaciones, enganchePartes, ocultarColgado, posicionEn, segundosDesde, TREN_CONTENEDOR, TREN_LARGO, type Tramo } from './animaciones';
 
 const dos: Tramo[] = [
   { desde: [0, 0, 0], hasta: [10, 0, 0], duracion: 10 },
@@ -182,3 +182,17 @@ describe('reposo final', () => {
   });
 });
 const ALURA = (id: keyof typeof ALTURA_FINAL) => ALTURA_FINAL[id];
+
+describe('contenedor colgado de la grúa', () => {
+  it('se esconde solo si la grúa se conduce y el contenedor animado se dibuja', () => {
+    expect(ocultarColgado(true, true)).toBe(true);
+  });
+  it('cambio descarga-ciclo -> recorrido: sin grúa conducida se vuelve a ver', () => {
+    expect(ocultarColgado(true, true)).toBe(true); // descarga-ciclo
+    expect(ocultarColgado(false, true)).toBe(false); // recorrido no usa la grúa
+  });
+  it('grúa no conducida (ausente o explotada) o módulo clave faltante: se ve', () => {
+    expect(ocultarColgado(false, false)).toBe(false);
+    expect(ocultarColgado(true, false)).toBe(false);
+  });
+});
