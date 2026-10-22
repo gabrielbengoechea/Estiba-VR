@@ -17,6 +17,15 @@ export function estadoEntrada(
   return { listo: true, mensaje: null };
 }
 
+/** Sentinel del Wake Lock: se guarda para poder volver a pedirlo (el sistema lo suelta al ocultarse la página). */
+let sentinel: WakeLockSentinel | null = null;
+
+async function pedirWakeLock(): Promise<void> {
+  try {
+    sentinel = (await navigator.wakeLock?.request('screen')) ?? null;
+  } catch { sentinel = null; /* no es imprescindible */ }
+}
+
 /** Intenta pantalla completa, orientación horizontal y que la pantalla no se apague; tolera que falle cualquiera. */
 async function prepararPantalla(): Promise<void> {
   try {
@@ -25,9 +34,11 @@ async function prepararPantalla(): Promise<void> {
   try {
     await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape');
   } catch { /* no es imprescindible */ }
-  try {
-    await navigator.wakeLock?.request('screen');
-  } catch { /* no es imprescindible */ }
+  await pedirWakeLock();
+  // Al volver a la pestaña el Wake Lock ya se liberó: se pide de nuevo.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && (!sentinel || sentinel.released)) void pedirWakeLock();
+  });
 }
 
 export function mostrarEntrada(contenedor: HTMLElement, alEntrar: () => void): void {
