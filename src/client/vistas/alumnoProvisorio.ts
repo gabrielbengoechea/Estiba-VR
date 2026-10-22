@@ -5,6 +5,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { estadoEntrada, mostrarEntrada } from './entrada';
 import { mostrarError } from './errorVista';
 import { VistaEstereo } from './estereo';
+import { ConexionSala } from '../red';
+import { MedidorFps } from './medidorFps';
 import { OrientacionAlumno } from './orientacion';
 
 function crearEscena(): THREE.Scene {
@@ -70,6 +72,72 @@ function crearReticulas(): HTMLElement {
   return capa;
 }
 
+const VERDE = '#3ddc84';
+const ROJO = '#ff5252';
+
+interface Indicadores {
+  capa: HTMLElement;
+  conexion(conectado: boolean): void;
+  fps(valor: number): void;
+}
+
+/** Por ojo: punto de conexión y, si se pidió, número de fps. Arriba, lejos de la retícula. */
+function crearIndicadores(mostrarFps: boolean): Indicadores {
+  const capa = document.createElement('div');
+  const puntos: HTMLElement[] = [];
+  const numeros: HTMLElement[] = [];
+  for (const izq of ['25%', '75%']) {
+    const grupo = document.createElement('div');
+    grupo.style.cssText =
+      `position:fixed;top:6%;left:${izq};transform:translateX(-50%);display:flex;align-items:center;gap:8px;` +
+      'pointer-events:none;font:700 18px system-ui,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000';
+    const punto = document.createElement('div');
+    punto.style.cssText = 'width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-sizing:border-box';
+    punto.style.background = ROJO;
+    punto.title = 'sin conexión';
+    grupo.append(punto);
+    puntos.push(punto);
+    if (mostrarFps) {
+      const n = document.createElement('span');
+      grupo.append(n);
+      numeros.push(n);
+    }
+    capa.append(grupo);
+  }
+  return {
+    capa,
+    conexion(c) {
+      for (const p of puntos) {
+        p.style.background = c ? VERDE : ROJO;
+        p.title = c ? 'conectado' : 'sin conexión';
+      }
+    },
+    fps(v) {
+      for (const n of numeros) n.textContent = String(v);
+    },
+  };
+}
+
+function conectarSala(app: HTMLElement, indicadores: Indicadores): void {
+  const sala = new URLSearchParams(location.search).get('sala') ?? '';
+  try {
+    const conexion = new ConexionSala(sala, 'alumno');
+    conexion.alCambioConexion((c) => indicadores.conexion(c));
+    conexion.alError((motivo) => {
+      indicadores.conexion(false);
+      const caja = document.createElement('div');
+      caja.setAttribute('role', 'alert');
+      caja.style.cssText =
+        'position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;' +
+        'padding:24px;text-align:center;font:600 28px system-ui,sans-serif;background:#0e1216;color:#eef0f2';
+      caja.textContent = motivo;
+      app.append(caja);
+    });
+  } catch (e) {
+    console.warn('No se pudo abrir la conexión con la sala', e); // la escena sigue sin conexión
+  }
+}
+
 export function iniciarAlumno(app: HTMLElement): void {
   app.textContent = '';
   app.style.display = 'block';
@@ -99,6 +167,13 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   const reticulas = crearReticulas();
   app.append(reticulas);
 
+  const mostrarFps = new URLSearchParams(location.search).get('fps') === '1';
+  const indicadores = crearIndicadores(mostrarFps);
+  app.append(indicadores.capa);
+  conectarSala(app, indicadores);
+  const medidor = new MedidorFps();
+  let ultimoNumero = -Infinity;
+
   // Mensaje claro (nunca pantalla negra) si el celular está en vertical.
   const aviso = document.createElement('div');
   aviso.style.cssText =
@@ -112,6 +187,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
     aviso.textContent = estado.mensaje;
     aviso.style.display = estado.listo ? 'none' : 'flex';
     reticulas.style.display = estado.listo ? 'block' : 'none';
+    indicadores.capa.style.display = estado.listo ? 'block' : 'none';
   };
   addEventListener('resize', ajustar);
   ajustar();
@@ -119,8 +195,15 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   // Tocar la pantalla (o el botón del Cardboard) recentra.
   addEventListener('pointerdown', () => orientacion.recentrar());
 
-  renderer.setAnimationLoop(() => {
+  renderer.setAnimationLoop((t: number) => {
     try {
+      if (mostrarFps) {
+        medidor.cuadro(t);
+        if (t - ultimoNumero >= 500) {
+          ultimoNumero = t;
+          indicadores.fps(medidor.fps());
+        }
+      }
       const [x, y, z, w] = orientacion.quat();
       cabeza.quaternion.set(x, y, z, w);
       vista.render(escena, cabeza);
