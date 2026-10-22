@@ -128,7 +128,9 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   app.append(renderer.domElement);
 
   const escena = new THREE.Scene();
-  crearAmbiente(escena);
+  crearAmbiente(escena, { mapaSombra: 1024 }); // celular: mapa de sombra más chico
+  // La sombra se calcula una vez por cuadro (no una por ojo); ver el bucle.
+  renderer.shadowMap.autoUpdate = false;
   const viva = new EscenaViva();
   escena.add(viva.raiz);
   const cabeza = new THREE.PerspectiveCamera(80, ancho() / 2 / alto(), 0.1, 3000);
@@ -193,6 +195,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
       const [x, y, z, w] = orientacion.quat();
       sensor.set(x, y, z, w);
       cabeza.quaternion.copy(base).multiply(sensor);
+      renderer.shadowMap.needsUpdate = true; // lo consume el primer ojo; el segundo reutiliza el mapa
       vista.render(escena, cabeza);
     } catch (e) {
       renderer.setAnimationLoop(null);

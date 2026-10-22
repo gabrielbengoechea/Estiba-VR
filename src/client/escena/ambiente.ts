@@ -11,7 +11,7 @@ export function configurarRenderer(renderer: THREE.WebGLRenderer): void {
 }
 
 /** Agua, cielo, niebla, luces y sombras, más el pavimento de la terminal detrás del muelle. */
-export function crearAmbiente(escena: THREE.Scene): void {
+export function crearAmbiente(escena: THREE.Scene, opciones: { mapaSombra?: number } = {}): void {
   const cielo = '#cfdde8';
   escena.background = new THREE.Color(cielo);
   escena.fog = new THREE.Fog(cielo, 380, 1200);
@@ -22,7 +22,8 @@ export function crearAmbiente(escena: THREE.Scene): void {
   sol.position.set(30, 230, 150); // el objetivo es el centro de la terminal (210, 0, -60)
   sol.target.position.set(210, 0, -60);
   sol.castShadow = true;
-  sol.shadow.mapSize.set(2048, 2048);
+  const mapa = opciones.mapaSombra ?? 2048;
+  sol.shadow.mapSize.set(mapa, mapa);
   Object.assign(sol.shadow.camera, { left: -300, right: 300, top: 260, bottom: -260, near: 10, far: 700 });
   sol.shadow.bias = -0.0004;
   sol.shadow.normalBias = 0.3;

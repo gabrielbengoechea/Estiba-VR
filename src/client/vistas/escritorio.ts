@@ -7,7 +7,7 @@ import type { EstadoSala, Vec3 } from '../../shared/tipos';
 import { ConexionSala } from '../red';
 import { configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
-import { comandoTraer, factorSuavizado, teclaAComando, urlAlumno } from './controlesDocente';
+import { comandoTraer, esLinkLocal, factorSuavizado, teclaAComando, urlAlumno } from './controlesDocente';
 
 export type ModoEscritorio = 'proyector' | 'docente';
 
@@ -177,7 +177,7 @@ export class VistaEscritorio {
       'right:16px;top:16px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;' +
       'background:#fff;color:#0e1216;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.35)',
     );
-    const url = urlAlumno(location.origin, sala);
+    const url = urlAlumno(location.origin, sala, new URLSearchParams(location.search).get('publico'));
     const img = document.createElement('img');
     img.alt = `Código QR para entrar a la sala ${sala}`;
     img.width = 200;
@@ -192,6 +192,12 @@ export class VistaEscritorio {
     link.textContent = url;
     link.style.cssText = 'font-size:11px;font-weight:500;max-width:200px;word-break:break-all;text-align:center';
     caja.append(img, codigo, link);
+    if (esLinkLocal(url)) {
+      const nota = document.createElement('div');
+      nota.textContent = 'Este link solo funciona en esta computadora. Abrí el proyector desde el link público o agregá ?publico=…';
+      nota.style.cssText = 'font-size:12px;font-weight:600;max-width:200px;text-align:center;color:#b3261e';
+      caja.append(nota);
+    }
     this.app.append(caja);
   }
 

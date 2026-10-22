@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comandoTraer, factorSuavizado, guinadaHacia, teclaAComando, urlAlumno } from './controlesDocente';
+import { comandoTraer, esLinkLocal, factorSuavizado, guinadaHacia, teclaAComando, urlAlumno } from './controlesDocente';
 
 describe('teclaAComando', () => {
   it('las flechas pasan de paso', () => {
@@ -41,5 +41,23 @@ describe('factorSuavizado', () => {
 describe('urlAlumno', () => {
   it('arma el link con sala y rol', () => {
     expect(urlAlumno('https://estiba.test', '1234')).toBe('https://estiba.test/?sala=1234&rol=alumno');
+  });
+  it('usa la base pública si se pasa, sin barra final', () => {
+    expect(urlAlumno('http://localhost:5173', '1234', 'https://algo.trycloudflare.com/')).toBe('https://algo.trycloudflare.com/?sala=1234&rol=alumno');
+    expect(urlAlumno('http://localhost:5173', '1234', '')).toBe('http://localhost:5173/?sala=1234&rol=alumno');
+    expect(urlAlumno('http://localhost:5173', '1234', null)).toBe('http://localhost:5173/?sala=1234&rol=alumno');
+  });
+});
+
+describe('esLinkLocal', () => {
+  it('detecta localhost y loopback', () => {
+    expect(esLinkLocal('http://localhost:5173/?sala=1')).toBe(true);
+    expect(esLinkLocal('http://127.0.0.1:5173')).toBe(true);
+    expect(esLinkLocal('http://[::1]:5173')).toBe(true);
+  });
+  it('no marca links públicos, de la LAN ni inválidos', () => {
+    expect(esLinkLocal('https://algo.trycloudflare.com')).toBe(false);
+    expect(esLinkLocal('http://192.168.1.20:5173')).toBe(false);
+    expect(esLinkLocal('basura')).toBe(false);
   });
 });

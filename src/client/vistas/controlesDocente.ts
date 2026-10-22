@@ -31,6 +31,17 @@ export function factorSuavizado(dt: number, velocidad: number): number {
 }
 
 /** Dirección que se muestra en el QR: la página del alumno de esa sala. */
-export function urlAlumno(origen: string, sala: string): string {
-  return `${origen}/?sala=${encodeURIComponent(sala)}&rol=alumno`;
+export function urlAlumno(origen: string, sala: string, publico?: string | null): string {
+  const base = (publico && publico.trim() ? publico.trim() : origen).replace(/\/+$/, '');
+  return `${base}/?sala=${encodeURIComponent(sala)}&rol=alumno`;
+}
+
+/** Verdadero si el link solo funciona en la computadora que lo abre (localhost, 127.x, ::1). */
+export function esLinkLocal(url: string): boolean {
+  try {
+    const h = new URL(url).hostname;
+    return h === 'localhost' || h.endsWith('.localhost') || /^127\./.test(h) || h === '[::1]' || h === '::1';
+  } catch {
+    return false;
+  }
 }
