@@ -48,7 +48,7 @@ Claude no puede crear cuentas: lo hace el equipo.
 4. Esperar el primer despliegue y abrir la URL `https://estiba.onrender.com` (o la que asigne Render).
 5. Verificar: un celular y el Quest entran por HTTPS a `/?sala=XXXX&rol=alumno` y `/?sala=XXXX&rol=docente&pin=PIN` y siguen la clase.
 
-Qué configura `render.yaml`: servicio web Node 22, build `npm ci && npm run build`, start `npm start`, `NODE_ENV=production`, `ESTIBA_DETRAS_DE_PROXY=1`, `ESTIBA_PROXIES=1` y un disco persistente en `/var/data` (variable `ESTIBA_DATOS`) donde se guardan las salas.
+Qué configura `render.yaml`: servicio web Node 22, build `npm ci --include=dev && npm run build` (Render instala con `NODE_ENV=production`, que omite las devDependencies; `vite` hace falta para el build), start `npm start`, `NODE_ENV=production`, `ESTIBA_DETRAS_DE_PROXY=1`, `ESTIBA_PROXIES=1` y un disco persistente en `/var/data` (variable `ESTIBA_DATOS`) donde se guardan las salas.
 
 - **IP detrás del proxy**: en Render todos llegan con la IP del proxy, y el límite de intentos de PIN va por IP. Con `ESTIBA_DETRAS_DE_PROXY=1` el servidor usa la entrada de `X-Forwarded-For` que está N-ésima **desde la derecha** (`ESTIBA_PROXIES`, por defecto 1), porque cada proxy agrega al final la IP que ve y lo de la izquierda lo puede falsificar cualquiera. Sin la variable, la cabecera se ignora.
   - Cómo verificar N en Render: desplegar con un `console.log(req.headers['x-forwarded-for'])` temporal en `server/servidor.ts`, hacer `curl -H "X-Forwarded-For: 1.2.3.4" https://<servicio>.onrender.com/` y mirar el log: la IP real de quien llama tiene que ser la entrada N-ésima desde la derecha (con un solo proxy, la última, N=1). Si hay más proxies (por ejemplo un CDN delante), subí `ESTIBA_PROXIES`. Después sacá el log.
