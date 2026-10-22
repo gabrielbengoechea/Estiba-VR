@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { estadoEntrada, mostrarEntrada } from './entrada';
+import { mostrarError } from './errorVista';
 import { VistaEstereo } from './estereo';
 import { OrientacionAlumno } from './orientacion';
 
@@ -54,6 +55,9 @@ function crearEscena(): THREE.Scene {
   return escena;
 }
 
+const ancho = () => document.documentElement.clientWidth;
+const alto = () => document.documentElement.clientHeight;
+
 function crearReticulas(): HTMLElement {
   const capa = document.createElement('div');
   for (const izq of ['25%', '75%']) {
@@ -69,21 +73,26 @@ function crearReticulas(): HTMLElement {
 export function iniciarAlumno(app: HTMLElement): void {
   app.textContent = '';
   app.style.display = 'block';
-  mostrarEntrada(app, () => void iniciarVistaDoble(app));
+  mostrarEntrada(app, () => {
+    iniciarVistaDoble(app).catch((e) => {
+      console.error('Falló la vista doble', e);
+      mostrarError(app);
+    });
+  });
 }
 
 async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   const orientacion = new OrientacionAlumno();
   await orientacion.pedirPermiso(); // ya concedido en la entrada: solo engancha el sensor
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true }); // lanza si no hay WebGL
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(ancho(), alto(), false);
   renderer.domElement.style.cssText = 'display:block;width:100%;height:100%';
   app.append(renderer.domElement);
 
   const escena = crearEscena();
-  const cabeza = new THREE.PerspectiveCamera(80, innerWidth / 2 / innerHeight, 0.1, 3000);
+  const cabeza = new THREE.PerspectiveCamera(80, ancho() / 2 / alto(), 0.1, 3000);
   cabeza.position.set(36, 4.7, -14);
   const vista = new VistaEstereo(renderer);
 
@@ -98,8 +107,8 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   app.append(aviso);
 
   const ajustar = () => {
-    renderer.setSize(innerWidth, innerHeight);
-    const estado = estadoEntrada('concedido', innerHeight > innerWidth);
+    renderer.setSize(ancho(), alto(), false);
+    const estado = estadoEntrada('concedido', alto() > ancho());
     aviso.textContent = estado.mensaje;
     aviso.style.display = estado.listo ? 'none' : 'flex';
     reticulas.style.display = estado.listo ? 'block' : 'none';
@@ -111,8 +120,14 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   addEventListener('pointerdown', () => orientacion.recentrar());
 
   renderer.setAnimationLoop(() => {
-    const [x, y, z, w] = orientacion.quat();
-    cabeza.quaternion.set(x, y, z, w);
-    vista.render(escena, cabeza);
+    try {
+      const [x, y, z, w] = orientacion.quat();
+      cabeza.quaternion.set(x, y, z, w);
+      vista.render(escena, cabeza);
+    } catch (e) {
+      renderer.setAnimationLoop(null);
+      console.error('Falló el dibujado', e);
+      mostrarError(app);
+    }
   });
 }

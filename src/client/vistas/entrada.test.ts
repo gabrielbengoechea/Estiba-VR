@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { estadoEntrada } from './entrada';
+import { MENSAJE_ERROR_3D } from './errorVista';
+
+describe('MENSAJE_ERROR_3D', () => {
+  it('dice en español qué hacer si falla la vista 3D', () => {
+    expect(MENSAJE_ERROR_3D).toBe(
+      'No pudimos iniciar la vista 3D en este celular. Probá recargar la página o usar otro navegador.',
+    );
+  });
+});
 
 describe('estadoEntrada', () => {
   it('con permiso denegado explica cómo permitir el movimiento', () => {

@@ -6,6 +6,7 @@
   "description": "Estiba: logística portuaria inmersiva para clases",
   "scripts": {
     "dev:web": "vite",
+    "dev:web:http": "vite --mode http",
     "dev:server": "tsx watch server/index.ts",
     "build": "vite build",
     "start": "tsx server/index.ts",
