@@ -58,7 +58,7 @@ export class VistaEscritorio {
   private estadoConexion = crearPanel('left:16px;bottom:12px;text-shadow:0 0 4px #000,0 0 4px #000;font-size:16px');
 
   constructor(private app: HTMLElement, private modo: ModoEscritorio, sala: string, pin?: string) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: modo === 'docente' }); // alpha: el passthrough de la maqueta AR lo necesita
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     configurarRenderer(this.renderer);
     this.renderer.domElement.style.cssText = 'display:block;width:100%;height:100%';
@@ -104,7 +104,7 @@ export class VistaEscritorio {
       this.controles.update();
       this.armarDocente();
       // Solo el docente puede entrar en VR (Quest); en laptop el botón no aparece.
-      this.cuadroXR = iniciarXR(this.renderer, this.escena, this.conexion, this.viva, this.camara);
+      this.cuadroXR = iniciarXR(this.renderer, this.escena, this.conexion, this.viva, this.camara, () => this.estado);
     }
 
     this.renderer.setAnimationLoop(() => this.cuadro());
