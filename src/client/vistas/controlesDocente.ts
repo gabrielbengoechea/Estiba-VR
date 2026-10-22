@@ -30,9 +30,20 @@ export function factorSuavizado(dt: number, velocidad: number): number {
   return 1 - Math.exp(-Math.max(0, dt) * velocidad);
 }
 
+/** Origen (sin ruta, consulta ni hash) de un http/https válido; cualquier otra cosa da null. */
+function baseValida(x: string | null | undefined): string | null {
+  if (!x) return null;
+  try {
+    const u = new URL(x.trim());
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Dirección que se muestra en el QR: la página del alumno de esa sala. */
 export function urlAlumno(origen: string, sala: string, publico?: string | null): string {
-  const base = (publico && publico.trim() ? publico.trim() : origen).replace(/\/+$/, '');
+  const base = baseValida(publico) ?? origen.replace(/\/+$/, '');
   return `${base}/?sala=${encodeURIComponent(sala)}&rol=alumno`;
 }
 

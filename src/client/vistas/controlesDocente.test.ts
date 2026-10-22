@@ -42,6 +42,15 @@ describe('urlAlumno', () => {
   it('arma el link con sala y rol', () => {
     expect(urlAlumno('https://estiba.test', '1234')).toBe('https://estiba.test/?sala=1234&rol=alumno');
   });
+  it('si la base pública es inválida, vuelve al origen', () => {
+    for (const malo of ['basura', '%%%', 'ftp:x', 'javascript:alert(1)']) {
+      expect(urlAlumno('http://localhost:5173', '1234', malo)).toBe('http://localhost:5173/?sala=1234&rol=alumno');
+    }
+  });
+  it('de la base pública solo se conserva el origen', () => {
+    expect(urlAlumno('http://localhost:5173', '1234', 'https://x.com/?a=1')).toBe('https://x.com/?sala=1234&rol=alumno');
+    expect(urlAlumno('http://localhost:5173', '1234', 'https://x.com/ruta/#h')).toBe('https://x.com/?sala=1234&rol=alumno');
+  });
   it('usa la base pública si se pasa, sin barra final', () => {
     expect(urlAlumno('http://localhost:5173', '1234', 'https://algo.trycloudflare.com/')).toBe('https://algo.trycloudflare.com/?sala=1234&rol=alumno');
     expect(urlAlumno('http://localhost:5173', '1234', '')).toBe('http://localhost:5173/?sala=1234&rol=alumno');
