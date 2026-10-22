@@ -50,6 +50,8 @@ export class ConexionSala {
   private cerrada = false;
   private fatal = false;
   private ultimaPose = -Infinity;
+  private poseDiferida: PoseSaliente | null = null;
+  private timerPose: ReturnType<typeof setTimeout> | null = null;
   private cbEstado: ((e: EstadoSala) => void)[] = [];
   private cbPose: ((p: PoseServidor) => void)[] = [];
   private cbError: ((motivo: string) => void)[] = [];
@@ -83,15 +85,42 @@ export class ConexionSala {
   /** Máximo 20 por segundo; las que sobran se descartan. */
   enviarPose(p: PoseSaliente): void {
     const t = this.ahora();
-    if (t - this.ultimaPose < MIN_ENTRE_POSES_MS) return;
-    this.ultimaPose = t;
-    this.mandar({ t: 'pose', ...p });
+    const falta = MIN_ENTRE_POSES_MS - (t - this.ultimaPose);
+    if (falta <= 0) {
+      this.limpiarPose();
+      this.ultimaPose = t;
+      this.mandar({ t: 'pose', ...p });
+      return;
+    }
+    // Se guarda la última pose descartada y se manda al terminar la ventana.
+    this.poseDiferida = p;
+    if (this.timerPose === null) {
+      this.timerPose = setTimeout(() => {
+        this.timerPose = null;
+        const d = this.poseDiferida;
+        this.poseDiferida = null;
+        if (d) this.enviarPose(d);
+      }, falta);
+    }
+  }
+
+  private limpiarPose(): void {
+    if (this.timerPose !== null) clearTimeout(this.timerPose);
+    this.timerPose = null;
+    this.poseDiferida = null;
+  }
+
+  private avisar<T>(lista: ((x: T) => void)[], x: T): void {
+    for (const f of lista) {
+      try { f(x); } catch (err) { console.error('Error en un oyente de ConexionSala', err); }
+    }
   }
 
   cerrar(): void {
     this.cerrada = true;
     if (this.temporizador !== null) clearTimeout(this.temporizador);
     this.temporizador = null;
+    this.limpiarPose();
     this.reloj.detener();
     this.socket?.close();
   }
@@ -110,8 +139,8 @@ export class ConexionSala {
         t: 'unirse', sala: this.sala, rol: this.rol,
         ...(this.pin !== undefined ? { pin: this.pin } : {}),
       });
-      this.cambiarConexion(true);
       this.reloj.iniciar();
+      this.cambiarConexion(true);
     };
     s.onmessage = (ev) => {
       if (typeof ev.data !== 'string') return;
@@ -122,23 +151,25 @@ export class ConexionSala {
     s.onclose = () => {
       if (this.socket !== s) return;
       this.reloj.detener();
+      this.limpiarPose();
+      if (!this.cerrada && !this.fatal) {
+        const espera = ESPERAS_MS[Math.min(this.intento, ESPERAS_MS.length - 1)];
+        this.intento++;
+        this.temporizador = setTimeout(() => this.abrir(), espera);
+      }
       this.cambiarConexion(false);
-      if (this.cerrada || this.fatal) return;
-      const espera = ESPERAS_MS[Math.min(this.intento, ESPERAS_MS.length - 1)];
-      this.intento++;
-      this.temporizador = setTimeout(() => this.abrir(), espera);
     };
     s.onerror = () => { /* el cierre se encarga de reconectar */ };
   }
 
   private recibir(m: MsgServidor): void {
     switch (m.t) {
-      case 'estado': this.cbEstado.forEach((f) => f(m.e)); break;
-      case 'pose': this.cbPose.forEach((f) => f(m)); break;
+      case 'estado': this.avisar(this.cbEstado, m.e); break;
+      case 'pose': this.avisar(this.cbPose, m); break;
       case 'pong': this.reloj.recibirPong(m.tc, m.ts); break;
       case 'error':
         if (ERRORES_FATALES.includes(m.motivo)) this.fatal = true;
-        this.cbError.forEach((f) => f(m.motivo));
+        this.avisar(this.cbError, m.motivo);
         break;
     }
   }
@@ -146,6 +177,6 @@ export class ConexionSala {
   private cambiarConexion(c: boolean): void {
     if (this.conectado === c) return;
     this.conectado = c;
-    this.cbConexion.forEach((f) => f(c));
+    this.avisar(this.cbConexion, c);
   }
 }
