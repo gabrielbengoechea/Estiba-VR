@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALTURA_MAQUETA, BOTONES, CENTRO_TERMINAL, DISTANCIA_MAQUETA, ESCALA_MAQUETA,
-  accionDeBoton, colocacionMaqueta, comandoTraer, enrutarGatillo,
+  accionDeBoton, colocacionMaqueta, comandoTraer, enrutarGatillo, puntoATerminal,
 } from './logicaMenu';
 
 const ctx = {
   cabeza: { pos: [10, 1.6, 5] as [number, number, number], quat: [0, 0, 0, 1] as [number, number, number, number] },
   animacion: 'a1' as string | undefined,
   enAR: false,
+  arSoportado: true,
 };
 
 describe('botones', () => {
@@ -84,5 +85,28 @@ describe('colocacionMaqueta', () => {
   it('mirando recto hacia abajo usa -z como adelante', () => {
     const { posicion, escala } = colocacionMaqueta([0, 1.6, 0], [0, -1, 0]);
     expect(CENTRO_TERMINAL[2] * escala + posicion[2]).toBeCloseTo(-1);
+  });
+});
+
+describe('puntoATerminal (pose del docente en AR → terminal)', () => {
+  it('invierte la colocación: un punto sobre la mesa pasa a coordenadas reales de la terminal', () => {
+    const { escala, posicion } = colocacionMaqueta([2, 1.6, 3], [0, 0, -1]);
+    // La cabeza a 1,6 m, un metro detrás del centro de la maqueta, equivale a estar 400 m detrás y (1,6-0,8)·400 m arriba.
+    const p = puntoATerminal([2, 1.6, 3], posicion, escala);
+    expect(p[0]).toBeCloseTo(CENTRO_TERMINAL[0]);
+    expect(p[1]).toBeCloseTo((1.6 - ALTURA_MAQUETA) * 400);
+    expect(p[2]).toBeCloseTo(CENTRO_TERMINAL[2] + 400);
+  });
+  it('el centro de la maqueta vuelve a ser el centro de la terminal', () => {
+    const { escala, posicion } = colocacionMaqueta([0, 1.6, 0], [1, 0, 0]);
+    const c = puntoATerminal([1, ALTURA_MAQUETA, 0], posicion, escala);
+    c.forEach((v, i) => expect(v).toBeCloseTo(CENTRO_TERMINAL[i]));
+  });
+});
+
+describe('alternarAR sin soporte', () => {
+  it('no hace nada si el visor no soporta AR (no se cierra la sesión VR)', () => {
+    expect(accionDeBoton(4, { ...ctx, arSoportado: false })).toBeNull();
+    expect(accionDeBoton(4, { ...ctx, enAR: true, arSoportado: false })).toEqual({ tipo: 'alternarAR' });
   });
 });

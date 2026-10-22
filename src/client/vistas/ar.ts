@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import type { Vec3 } from '../../shared/tipos';
 import type { EscenaViva } from '../escena/construirEscena';
-import { colocacionMaqueta, ESCALA_MAQUETA } from '../docente/logicaMenu';
+import { colocacionMaqueta, ESCALA_MAQUETA, puntoATerminal } from '../docente/logicaMenu';
 
 export async function soportaAR(): Promise<boolean> {
   try { return !!navigator.xr && (await navigator.xr.isSessionSupported('immersive-ar')); } catch { return false; }
@@ -58,7 +58,7 @@ export function iniciarAR(viva: EscenaViva, escena: THREE.Scene): Maqueta {
     },
     aTerminal(p) {
       const r = viva.raiz.position;
-      return [(p[0] - r.x) / ESCALA_MAQUETA, (p[1] - r.y) / ESCALA_MAQUETA, (p[2] - r.z) / ESCALA_MAQUETA];
+      return puntoATerminal(p, [r.x, r.y, r.z], ESCALA_MAQUETA);
     },
   };
 }

@@ -11,6 +11,7 @@ const TAM_TEXTO = 0.019;
 const COLOR_BASE = 0x1b2a3d;
 const COLOR_ARMADO = 0xd98a1f;
 const COLOR_AR = 0x2a7a4b;
+const COLOR_DESHABILITADO = 0x4a4f57;
 
 export class MenuMuneca {
   readonly grupo = new THREE.Group();
@@ -21,6 +22,7 @@ export class MenuMuneca {
   private _d = new THREE.Vector3();
   private armado = false;
   private enAR = false;
+  private arSoportado = false;
 
   constructor() {
     BOTONES.forEach((etiqueta, i) => {
@@ -75,8 +77,14 @@ export class MenuMuneca {
     this.pintar();
   }
 
+  /** Sin soporte de immersive-ar el botón de la maqueta se ve apagado. */
+  ponerARSoportado(v: boolean): void {
+    this.arSoportado = v;
+    this.pintar();
+  }
+
   private pintar(): void {
     (this.botones[IND_MIREN_ACA].material as THREE.MeshBasicMaterial).color.setHex(this.armado ? COLOR_ARMADO : COLOR_BASE);
-    (this.botones[IND_MAQUETA].material as THREE.MeshBasicMaterial).color.setHex(this.enAR ? COLOR_AR : COLOR_BASE);
+    (this.botones[IND_MAQUETA].material as THREE.MeshBasicMaterial).color.setHex(this.enAR ? COLOR_AR : this.arSoportado ? COLOR_BASE : COLOR_DESHABILITADO);
   }
 }

@@ -61,6 +61,9 @@ export function iniciarXR(
       if (fuente.handedness === 'right') derecho = i;
       if (fuente.handedness === 'left') { izquierdo = i; grip.add(menu.grupo); }
     });
+    // Los botones del menú se activan con `select`: ese evento da la activación de usuario que requestSession exige
+    // (el gatillo leído del gamepad en el bucle no la da). El gatillo leído solo se ocupa de resaltar/marcar.
+    ctrl.addEventListener('select', () => { if (i === derecho) alSelect(ctrl); });
     ctrl.addEventListener('disconnected', () => {
       fuentes.delete(i);
       if (derecho === i) derecho = -1;
@@ -68,6 +71,26 @@ export function iniciarXR(
     });
     dolly.add(ctrl, grip);
   }
+
+  const selOrigen = new THREE.Vector3();
+  const selDir = new THREE.Vector3();
+  const selQuat = new THREE.Quaternion();
+  const alSelect = (ctrl: THREE.Object3D) => {
+    if (!renderer.xr.isPresenting) return;
+    ctrl.getWorldPosition(selOrigen);
+    selDir.set(0, 0, -1).applyQuaternion(ctrl.getWorldQuaternion(selQuat));
+    const indice = menu.golpe(selOrigen, selDir);
+    if (indice === null) return;
+    dolly.updateMatrixWorld();
+    const cabeza = poseMundo(dolly.matrixWorld.elements, renderer.xr.getCamera().matrix.elements);
+    const e = obtenerEstado();
+    const act = accionDeBoton(indice, {
+      cabeza, animacion: e?.clase.pasos[e.paso]?.animacion, enAR: modoSesion === 'ar', arSoportado,
+    });
+    if (act?.tipo === 'comando') conexion.enviar(act.c);
+    else if (act?.tipo === 'armarMirenAca') { armado = !armado; menu.ponerArmado(armado); }
+    else if (act?.tipo === 'alternarAR') void cambiarA(modoSesion === 'ar' ? 'vr' : 'ar');
+  };
 
   const estiloBoton =
     'position:fixed;left:50%;transform:translateX(-50%);z-index:20;padding:18px 36px;' +
@@ -147,7 +170,8 @@ export function iniciarXR(
   /** Cierra la sesión actual y abre la del otro modo (VR ↔ AR). */
   const cambiarA = async (modo: ModoSesion) => {
     const actual = sesion;
-    if (cambiando || !actual) return;
+    // Sin soporte de AR no se cierra la sesión VR (el docente no se queda afuera).
+    if (cambiando || !actual || (modo === 'ar' && !arSoportado)) return;
     cambiando = true;
     try {
       await new Promise<void>((res) => {
@@ -163,7 +187,7 @@ export function iniciarXR(
   navigator.xr?.isSessionSupported('immersive-vr')
     .then((ok) => { if (ok) boton.style.display = 'block'; })
     .catch(() => undefined);
-  void soportaAR().then((ok) => { arSoportado = ok; if (ok && !sesion) botonAR.style.display = 'block'; });
+  void soportaAR().then((ok) => { arSoportado = ok; menu.ponerARSoportado(ok); if (ok && !sesion) botonAR.style.display = 'block'; });
 
   const quatCtrl = new THREE.Quaternion();
   const origen = new THREE.Vector3();
@@ -191,8 +215,12 @@ export function iniciarXR(
       o = [origen.x, origen.y, origen.z];
       d = [dir.x, dir.y, dir.z];
     }
-    // En AR la cabeza está en el mundo real: el proyector no recibe pose y sigue con su vista normal.
-    if (modoSesion !== 'ar') conexion.enviarPose(empaquetarPose(cabeza.pos, cabeza.quat, o, d));
+    if (modoSesion !== 'ar') {
+      conexion.enviarPose(empaquetarPose(cabeza.pos, cabeza.quat, o, d));
+    } else if (maqueta.activa) {
+      // En AR la pose se pasa a coordenadas de la terminal: el proyector ve desde el punto de vista equivalente.
+      conexion.enviarPose(empaquetarPose(maqueta.aTerminal(cabeza.pos), cabeza.quat, o && maqueta.aTerminal(o), d));
+    }
 
     const botones = fuentes.get(derecho)?.gamepad?.buttons;
     if (!botones) return;
@@ -204,17 +232,11 @@ export function iniciarXR(
       // `origen` y `dir` siguen valiendo el rayo derecho. Un botón del menú consume el gatillo.
       const ruta = enrutarGatillo(accion, menu.golpe(origen, dir), armado);
       if (ruta.tipo === 'boton') {
-        const e = obtenerEstado();
-        const act = accionDeBoton(ruta.indice, {
-          cabeza, animacion: e?.clase.pasos[e.paso]?.animacion, enAR: modoSesion === 'ar',
-        });
-        if (act?.tipo === 'comando') conexion.enviar(act.c);
-        else if (act?.tipo === 'armarMirenAca') { armado = !armado; menu.ponerArmado(armado); }
-        else if (act?.tipo === 'alternarAR') void cambiarA(modoSesion === 'ar' ? 'vr' : 'ar');
+        // Lo activa el evento `select` (ver arriba); acá solo se consume para que no resalte ni marque.
       } else if (ruta.tipo === 'resaltar') {
         conexion.enviar({ t: 'resaltar', id: puntero.intersectar(o, d)?.moduloId ?? null });
       } else if (ruta.tipo === 'marcar') {
-        const p = puntero.punto(o, d);
+        const p = puntero.punto(o, d); // null si no hay nada visible: no se manda y «Miren acá» sigue armado
         if (p) {
           conexion.enviar({ t: 'mirenAca', pos: maqueta.activa ? maqueta.aTerminal(p) : p });
           armado = false;

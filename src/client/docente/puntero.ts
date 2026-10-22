@@ -13,7 +13,8 @@ export class Puntero {
 
   private lanzar(origen: Vec3, dir: Vec3, raiz: THREE.Object3D) {
     this.rayo.set(new THREE.Vector3(...origen), new THREE.Vector3(...dir).normalize());
-    return this.rayo.intersectObjects(raiz.children, true)[0];
+    // Raycaster no mira `visible`: lo oculto (agua y suelo en AR) no se puede golpear.
+    return this.rayo.intersectObjects(raiz.children, true).find((h) => visible(h.object));
   }
 
   /** Módulo que golpea el rayo (o null si apunta al vacío, al agua o al suelo). */
@@ -28,4 +29,9 @@ export class Puntero {
     const g = this.lanzar(origen, dir, this.escena);
     return g ? [g.point.x, g.point.y, g.point.z] : null;
   }
+}
+
+function visible(o: THREE.Object3D | null): boolean {
+  for (; o; o = o.parent) if (!o.visible) return false;
+  return true;
 }

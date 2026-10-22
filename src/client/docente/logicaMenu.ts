@@ -58,6 +58,8 @@ export interface ContextoMenu {
   /** Animación del paso actual, si tiene. */
   animacion: string | undefined;
   enAR: boolean;
+  /** El visor soporta immersive-ar; si no, el botón de la maqueta no hace nada. */
+  arSoportado: boolean;
 }
 
 export function accionDeBoton(indice: number, ctx: ContextoMenu): AccionMenu {
@@ -68,7 +70,7 @@ export function accionDeBoton(indice: number, ctx: ContextoMenu): AccionMenu {
     case IND_MIREN_ACA: return { tipo: 'armarMirenAca' };
     case IND_ANIMAR: return ctx.animacion ? { tipo: 'comando', c: { t: 'animar', id: ctx.animacion } } : null;
     case IND_RECENTRAR: return { tipo: 'comando', c: { t: 'recentrar' } };
-    case IND_MAQUETA: return { tipo: 'alternarAR' };
+    case IND_MAQUETA: return ctx.enAR || ctx.arSoportado ? { tipo: 'alternarAR' } : null;
     default: return null;
   }
 }
@@ -103,4 +105,9 @@ export function colocacionMaqueta(cabezaPos: Vec3, adelante: Vec3): { escala: nu
       objetivo[2] - CENTRO_TERMINAL[2] * e,
     ],
   };
+}
+
+/** Punto del mundo real (sobre/cerca de la maqueta) → coordenadas de la terminal; invierte `colocacionMaqueta`. */
+export function puntoATerminal(p: Vec3, posicionRaiz: Vec3, escala: number): Vec3 {
+  return [(p[0] - posicionRaiz[0]) / escala, (p[1] - posicionRaiz[1]) / escala, (p[2] - posicionRaiz[2]) / escala];
 }
