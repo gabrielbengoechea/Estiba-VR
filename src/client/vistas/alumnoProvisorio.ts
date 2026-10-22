@@ -89,10 +89,10 @@ function crearIndicadores(mostrarFps: boolean): Indicadores {
   for (const izq of ['25%', '75%']) {
     const grupo = document.createElement('div');
     grupo.style.cssText =
-      `position:fixed;top:6%;left:${izq};transform:translateX(-50%);display:flex;align-items:center;gap:8px;` +
-      'pointer-events:none;font:700 18px system-ui,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000';
+      `position:fixed;top:3%;left:${izq};transform:translateX(-50%);display:flex;align-items:center;gap:12px;` +
+      'pointer-events:none;font:700 40px/1 system-ui,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000';
     const punto = document.createElement('div');
-    punto.style.cssText = 'width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-sizing:border-box';
+    punto.style.cssText = 'width:40px;height:40px;border-radius:50%;border:3px solid #fff;box-sizing:border-box';
     punto.style.background = ROJO;
     punto.title = 'sin conexión';
     grupo.append(punto);
@@ -118,6 +118,24 @@ function crearIndicadores(mostrarFps: boolean): Indicadores {
   };
 }
 
+/** Cartel semitransparente en el tercio inferior, una copia centrada en cada ojo; la escena sigue visible. */
+function mostrarMotivo(app: HTMLElement, motivo: string): void {
+  app.querySelector('[data-motivo]')?.remove();
+  const capa = document.createElement('div');
+  capa.dataset.motivo = '1';
+  capa.setAttribute('role', 'alert');
+  for (const izq of ['25%', '75%']) {
+    const c = document.createElement('div');
+    c.style.cssText =
+      `position:fixed;bottom:3%;left:${izq};transform:translateX(-50%);width:46%;box-sizing:border-box;z-index:20;` +
+      'padding:10px 14px;text-align:center;font:600 40px/1.15 system-ui,sans-serif;color:#fff;' +
+      'background:rgba(14,18,22,0.72);border-radius:12px;pointer-events:none';
+    c.textContent = motivo;
+    capa.append(c);
+  }
+  app.append(capa);
+}
+
 function conectarSala(app: HTMLElement, indicadores: Indicadores): void {
   const sala = new URLSearchParams(location.search).get('sala') ?? '';
   try {
@@ -125,13 +143,7 @@ function conectarSala(app: HTMLElement, indicadores: Indicadores): void {
     conexion.alCambioConexion((c) => indicadores.conexion(c));
     conexion.alError((motivo) => {
       indicadores.conexion(false);
-      const caja = document.createElement('div');
-      caja.setAttribute('role', 'alert');
-      caja.style.cssText =
-        'position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;' +
-        'padding:24px;text-align:center;font:600 28px system-ui,sans-serif;background:#0e1216;color:#eef0f2';
-      caja.textContent = motivo;
-      app.append(caja);
+      mostrarMotivo(app, motivo);
     });
   } catch (e) {
     console.warn('No se pudo abrir la conexión con la sala', e); // la escena sigue sin conexión
