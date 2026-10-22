@@ -13,6 +13,13 @@ export interface EntradaCatalogo {
   paramsEditables: ParamEditable[];
 }
 
+/**
+ * Desplazamiento vertical (m) con que se coloca cada tipo de módulo. El modelo del tren se genera con sus ruedas
+ * a y = 0 y queda hundido en la vía (cuyo riel sube ~0,4 m), así que se lo sube.
+ */
+export const DESPLAZAMIENTO_Y: Partial<Record<TipoModulo, number>> = { tren: 0.4 };
+export const desplazamientoY = (tipo: TipoModulo): number => DESPLAZAMIENTO_Y[tipo] ?? 0;
+
 const promesas = new Map<string, Promise<THREE.Object3D>>();
 
 /** Carga el .glb una sola vez y devuelve un clon por pedido. */

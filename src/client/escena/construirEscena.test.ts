@@ -63,6 +63,15 @@ describe('EscenaViva', () => {
     expect(v.objeto('a')).toBeUndefined();
   });
 
+  it('el tren se coloca 0,4 m más arriba y el resto a y = 0', async () => {
+    const v = new EscenaViva(falso());
+    await v.aplicar(escena([a, { id: 't', tipo: 'tren', celda: [1, 1], rot: 0 }]));
+    expect(v.objeto('t')!.position.y).toBeCloseTo(0.4, 5);
+    expect(v.objeto('a')!.position.y).toBe(0);
+    await v.aplicar(escena([a, { id: 't', tipo: 'tren', celda: [3, 1], rot: 0 }]));
+    expect(v.objeto('t')!.position.y).toBeCloseTo(0.4, 5);
+  });
+
   it('un crear que falla no bloquea al resto y el siguiente aplicar lo reintenta', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fallar = new Set<string>(['bloque-patio']);

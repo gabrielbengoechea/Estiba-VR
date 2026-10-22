@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Escena, Modulo } from '../../shared/tipos';
 import { celdaAMundo } from '../../shared/grilla';
-import { catalogo as catalogoReal, type EntradaCatalogo } from './catalogo';
+import { catalogo as catalogoReal, desplazamientoY, type EntradaCatalogo } from './catalogo';
 import type { TipoModulo } from '../../shared/tipos';
 
 export type CatalogoCrear = Record<TipoModulo, Pick<EntradaCatalogo, 'crear'>>;
@@ -101,7 +101,7 @@ export class EscenaViva {
 
   private colocar(obj: THREE.Object3D, mod: Modulo, m: number): void {
     const [x, y, z] = celdaAMundo(mod.celda, m);
-    obj.position.set(x, y, z);
+    obj.position.set(x, y + desplazamientoY(mod.tipo), z);
     obj.rotation.set(0, THREE.MathUtils.degToRad(mod.rot), 0);
     obj.userData.moduloId = mod.id;
   }

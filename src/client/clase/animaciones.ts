@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import type { Escena, EstadoSala, Modulo, Vec3 } from '../../shared/tipos';
 import type { EscenaViva } from '../escena/construirEscena';
 import { PALETA } from '../../shared/colores';
+import { desplazamientoY } from '../escena/catalogo';
 
 export type Enganche = 'spreader-sts' | 'tractor' | 'spreader-rtg';
 
@@ -244,7 +245,7 @@ function recorrido(e: Escena): Tramo[] {
 
 /** Salida por tren: el contenedor viaja en el primer vagón y el tren parte hacia -x, que es su frente (25 s; no se sale de la vía: ver la prueba). */
 function salida(e: Escena): Tramo[] {
-  const inicio = local(e, 'tren-1', TREN_CONTENEDOR);
+  const inicio = local(e, 'tren-1', [TREN_CONTENEDOR[0], TREN_CONTENEDOR[1] + desplazamientoY('tren'), TREN_CONTENEDOR[2]]);
   const fin = sumar(inicio, [-TREN_RECORRIDO, 0, 0]);
   return [
     { desde: inicio, hasta: inicio, duracion: 3 },
@@ -289,7 +290,7 @@ export const ALTURA_FINAL: Record<IdAnimacion, number | null> = {
   atraque: null,
   'descarga-ciclo': ALTO_PILA,
   recorrido: ALTO_SUELO,
-  salida: TREN_CONTENEDOR[1],
+  salida: TREN_CONTENEDOR[1] + desplazamientoY('tren'),
 };
 
 const COLOR_CONTENEDOR = PALETA.contenedores[5]; // naranja: se distingue de los de la escena
@@ -360,7 +361,7 @@ export class Animador {
     this.caja.castShadow = true;
     this.caja.visible = false;
     this.caja.raycast = () => undefined;
-    escena.add(this.caja);
+    viva.raiz.add(this.caja); // en la raíz de la terminal: sus coordenadas son de terminal y, en AR, la maqueta lo escala con todo
   }
 
   cuadro(_dt: number, e: EstadoSala | null): void {
@@ -400,7 +401,7 @@ export class Animador {
     if (!obj) return;
     const c = Math.cos(p.giro);
     const s = Math.sin(p.giro);
-    obj.position.set(p.pos[0] - (c * desfase[0] + s * desfase[2]), 0, p.pos[2] - (-s * desfase[0] + c * desfase[2]));
+    obj.position.set(p.pos[0] - (c * desfase[0] + s * desfase[2]), desplazamientoY(modulo(e.escena, id)?.tipo ?? 'muelle'), p.pos[2] - (-s * desfase[0] + c * desfase[2]));
     obj.rotation.y = p.giro + THREE.MathUtils.degToRad(modulo(e.escena, id)?.rot ?? 0);
     this.tocados.set(id, this.marca);
   }
@@ -517,7 +518,7 @@ export class Animador {
     const mod = modulo(e.escena, id);
     if (mod) {
       const m = e.escena.metrosPorCelda;
-      obj.position.set(mod.celda[0] * m, 0, mod.celda[1] * m);
+      obj.position.set(mod.celda[0] * m, desplazamientoY(mod.tipo), mod.celda[1] * m);
       obj.rotation.set(0, THREE.MathUtils.degToRad(mod.rot), 0);
     }
     if (this.partes?.grua === obj && !this.explotando()) this.restaurarSts(this.partes);
