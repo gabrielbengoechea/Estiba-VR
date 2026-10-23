@@ -63,6 +63,19 @@ export function urlAlumno(origen: string, sala: string, publico?: string | null)
   return `${base}/?sala=${encodeURIComponent(sala)}&rol=alumno`;
 }
 
+/**
+ * Modo aula: si el proyector se abrió en localhost y no trae ?publico=, la base pública es la primera
+ * URL https de la red que expone el servidor; si no corresponde, null.
+ */
+export function baseDeAula(origen: string, publico: string | null | undefined, urlsRed: readonly string[]): string | null {
+  if (baseValida(publico) || !esLinkLocal(origen)) return null;
+  for (const u of urlsRed) {
+    const b = baseValida(u);
+    if (b) return b;
+  }
+  return null;
+}
+
 /** Verdadero si el link solo funciona en la computadora que lo abre (localhost, 127.x, ::1). */
 export function esLinkLocal(url: string): boolean {
   try {

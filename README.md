@@ -38,6 +38,17 @@ cloudflared tunnel --url https://localhost:5173 --no-tls-verify
 
 Usá la URL `https://...trycloudflare.com` que imprime, y pasala en `publico=` al proyector.
 
+## Clase sin internet
+
+Una laptop y un router alcanzan: la laptop sirve la app por HTTPS en la red local (los celulares necesitan HTTPS para el giroscopio). No usa internet ni Render.
+
+1. Conectar la laptop y los celulares al mismo router (sin internet está bien).
+2. En la laptop: `npm run aula` (compila y arranca). Si `ESTIBA_PIN` no está definido, pide el PIN por consola; no se muestra ni se guarda.
+3. La consola imprime las direcciones `https://<ip>:8443/?sala=1234&rol=proyector`. Abrir esa en la laptop (o `https://localhost:8443/...`): el QR usa solo la IP de la red.
+4. Cada celular acepta el certificado una vez (es autofirmado, se genera en `data/`). iPhone: «Mostrar detalles» → «visitar este sitio web».
+
+Puerto por defecto 8443 (`PORT` lo cambia). El servidor informa sus URL en `GET /api/red`.
+
 ## Publicación en Render
 
 Claude no puede crear cuentas: lo hace el equipo.

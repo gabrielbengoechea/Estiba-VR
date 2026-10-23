@@ -1,9 +1,12 @@
-import { createServer, type Server } from 'node:http';
+import { createServer as crearHttp, type Server, type RequestListener } from 'node:http';
+import { createServer as crearHttps } from 'node:https';
+import { networkInterfaces } from 'node:os';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { WebSocketServer } from 'ws';
 import { Salas, type OpcionesSalas } from './salas';
 import { ipCliente } from './ip';
+import { urlsDeLaRed } from './red';
 import { iniciarLatido, LATIDO_MS } from './latido';
 
 const TIPOS: Record<string, string> = {
@@ -21,16 +24,22 @@ const TIPOS: Record<string, string> = {
 
 const ALIAS: Record<string, string> = { '/': '/index.html', '/editor': '/editor.html' };
 
-/** Servidor HTTP (sirve `dirWeb`) con WebSocket en /ws. No empieza a escuchar: lo hace quien lo llama. */
-export function crearServidor(opts: OpcionesSalas & { dirWeb: string; latidoMs?: number }): Server {
+/** Servidor HTTP (o HTTPS si hay `tls`) que sirve `dirWeb`, con WebSocket en /ws. No empieza a escuchar: lo hace quien lo llama. */
+export function crearServidor(opts: OpcionesSalas & { dirWeb: string; latidoMs?: number; tls?: { key: string; cert: string } }): Server {
   const salas = new Salas(opts);
   const dirWeb = normalize(opts.dirWeb);
 
-  const http = createServer((req, res) => {
+  const atender: RequestListener = (req, res) => {
     const noEncontrado = (): void => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('No encontrado'); };
     let ruta: string;
     try {
       const url = new URL(req.url ?? '/', 'http://localhost');
+      if (url.pathname === '/api/red') {
+        const puerto = (http.address() as { port?: number } | null)?.port ?? 0;
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ urls: urlsDeLaRed(puerto, networkInterfaces()) }));
+        return;
+      }
       ruta = ALIAS[url.pathname] ?? decodeURIComponent(url.pathname);
     } catch {
       noEncontrado();
@@ -42,7 +51,8 @@ export function crearServidor(opts: OpcionesSalas & { dirWeb: string; latidoMs?:
       res.writeHead(200, { 'Content-Type': TIPOS[extname(archivo).toLowerCase()] ?? 'application/octet-stream' });
       res.end(datos);
     }, noEncontrado); // incluye dist/ inexistente (desarrollo): 404 sin caerse
-  });
+  };
+  const http: Server = opts.tls ? crearHttps(opts.tls, atender) : crearHttp(atender);
 
   const wss = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
   wss.on('connection', (ws, req) => salas.conectar(ws, ipCliente(req)));

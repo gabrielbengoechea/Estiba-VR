@@ -9,6 +9,12 @@
 4. Docente en la laptop: la misma dirección, sin visor.
 5. **Usá un solo dispositivo de docente a la vez** (Quest o laptop): si los dos mandan comandos juntos, la clase salta de un lado a otro.
 
+## Clase sin internet
+1. Router propio encendido; laptop y celulares conectados a él (no hace falta internet).
+2. En la laptop: `npm run aula` y escribir el PIN cuando lo pida.
+3. Abrir en la laptop la dirección `https://<ip>:8443/?sala=1234&rol=proyector` que imprime la consola. El QR ya apunta a la IP del router.
+4. **Cada celular acepta el certificado una sola vez** al abrir el QR. iPhone: «Mostrar detalles» → «visitar este sitio web». Después sigue como siempre.
+
 ## Controles del Quest
 | Acción | Cómo |
 |---|---|

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { comandoTraer, mirenAcaTrasClic, esLinkLocal, factorSuavizado, guinadaHacia, idFichaAlternada, teclaAComando, urlAlumno } from './controlesDocente';
+import { baseDeAula, comandoTraer, mirenAcaTrasClic, esLinkLocal, factorSuavizado, guinadaHacia, idFichaAlternada, teclaAComando, urlAlumno } from './controlesDocente';
 
 describe('teclaAComando', () => {
   it('las flechas pasan de paso', () => {
@@ -109,5 +109,19 @@ describe('mirenAcaTrasClic', () => {
   it('M + clic sin punto (vacío) apaga el aro', () => {
     expect(mirenAcaTrasClic([10, 0, 20], null)).toBeNull();
     expect(mirenAcaTrasClic(null, null)).toBeNull();
+  });
+});
+
+describe('baseDeAula', () => {
+  it('con ?publico= no toca nada', () => {
+    expect(baseDeAula('http://localhost:8443', 'https://x.com', ['https://192.168.0.10:8443'])).toBeNull();
+  });
+  it('en localhost sin publico usa la primera URL de la red', () => {
+    expect(baseDeAula('https://localhost:8443', null, ['https://192.168.0.10:8443', 'https://10.0.0.5:8443'])).toBe('https://192.168.0.10:8443');
+  });
+  it('fuera de localhost, sin URLs o con basura no hace nada', () => {
+    expect(baseDeAula('https://192.168.0.10:8443', null, ['https://10.0.0.5:8443'])).toBeNull();
+    expect(baseDeAula('https://localhost:8443', null, [])).toBeNull();
+    expect(baseDeAula('https://localhost:8443', null, ['ftp://x'])).toBeNull();
   });
 });

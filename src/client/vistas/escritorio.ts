@@ -11,7 +11,7 @@ import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
 import { Reproductor } from '../clase/reproductor';
 import { iniciarXR } from './xr';
-import { comandoTraer, esLinkLocal, factorSuavizado, idFichaAlternada, mirenAcaTrasClic, teclaAComando, urlAlumno } from './controlesDocente';
+import { baseDeAula, comandoTraer, esLinkLocal, factorSuavizado, idFichaAlternada, mirenAcaTrasClic, teclaAComando, urlAlumno } from './controlesDocente';
 
 export type ModoEscritorio = 'proyector' | 'docente';
 
@@ -197,26 +197,39 @@ export class VistaEscritorio {
       'right:16px;top:16px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px;' +
       'background:#fff;color:#0e1216;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.35)',
     );
-    const url = urlAlumno(location.origin, sala, new URLSearchParams(location.search).get('publico'));
+    const publico = new URLSearchParams(location.search).get('publico');
     const img = document.createElement('img');
     img.alt = `Código QR para entrar a la sala ${sala}`;
     img.width = 200;
     img.height = 200;
-    QRCode.toDataURL(url, { margin: 0, width: 200 })
-      .then((d) => { img.src = d; })
-      .catch((err) => console.error('No se pudo generar el QR', err));
     const codigo = document.createElement('div');
     codigo.textContent = `Sala ${sala}`;
     codigo.style.cssText = 'font-size:34px;font-weight:800;letter-spacing:.08em';
     const link = document.createElement('div');
-    link.textContent = url;
     link.style.cssText = 'font-size:11px;font-weight:500;max-width:200px;word-break:break-all;text-align:center';
-    caja.append(img, codigo, link);
-    if (esLinkLocal(url)) {
-      const nota = document.createElement('div');
-      nota.textContent = 'Este link solo funciona en esta computadora. Abrí el proyector desde el link público o agregá ?publico=…';
-      nota.style.cssText = 'font-size:12px;font-weight:600;max-width:200px;text-align:center;color:#b3261e';
-      caja.append(nota);
+    const nota = document.createElement('div');
+    nota.textContent = 'Este link solo funciona en esta computadora. Abrí el proyector desde el link público o agregá ?publico=…';
+    nota.style.cssText = 'font-size:12px;font-weight:600;max-width:200px;text-align:center;color:#b3261e';
+    caja.append(img, codigo, link, nota);
+    const mostrar = (base: string | null): void => {
+      const url = urlAlumno(location.origin, sala, base);
+      link.textContent = url;
+      nota.style.display = esLinkLocal(url) ? '' : 'none';
+      QRCode.toDataURL(url, { margin: 0, width: 200 })
+        .then((d) => { img.src = d; })
+        .catch((err) => console.error('No se pudo generar el QR', err));
+    };
+    mostrar(publico);
+    // Modo aula (sin internet): abierto en localhost sin ?publico=, usa la IP de la red que informa el servidor.
+    if (esLinkLocal(location.origin) && !publico) {
+      fetch('/api/red')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { urls?: unknown } | null) => {
+          const urls = Array.isArray(d?.urls) ? d.urls.filter((u): u is string => typeof u === 'string') : [];
+          const base = baseDeAula(location.origin, publico, urls);
+          if (base) mostrar(base);
+        })
+        .catch(() => { /* sin servidor de aula: queda el aviso de link local */ });
     }
     this.app.append(caja);
   }
