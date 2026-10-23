@@ -9,6 +9,8 @@ export interface OpcionesCarga {
   segundos: number;
   /** Segundos entre un comando de paso y el siguiente. */
   pasosCada: number;
+  /** Espera máxima (ms) por el estado resultante de un comando. */
+  esperaComandoMs?: number;
 }
 
 export interface Resultado {
@@ -17,6 +19,11 @@ export interface Resultado {
   latenciaP50: number;
   latenciaP95: number;
   estadosPerdidos: number;
+  comandosEnviados: number;
+  /** Comandos cuyo estado no llegó al docente a tiempo. */
+  comandosSinRespuesta: number;
+  /** Cuántas latencias se pudieron medir. */
+  muestras: number;
 }
 
 type Rol = 'docente' | 'alumno';
@@ -48,6 +55,7 @@ export async function ejecutarCarga(o: OpcionesCarga): Promise<Resultado> {
   let desconexiones = 0;
   const todos: WebSocket[] = [];
   const latencias: number[] = [];
+  let motivoRechazo = '';
   const envio = new Map<number, number>(); // versión esperada -> instante de envío
 
   const conectar = (rol: Rol, alRecibir: (e: EstadoMin) => void): Promise<WebSocket | null> =>
@@ -61,7 +69,10 @@ export async function ejecutarCarga(o: OpcionesCarga): Promise<Resultado> {
       });
       ws.on('message', (d) => {
         const e = leerEstado(d);
-        if (!e) return;
+        if (!e) {
+          try { const m = JSON.parse(d.toString()); if (m?.t === 'error') motivoRechazo = String(m.motivo); } catch { /* ignorar */ }
+          return;
+        }
         alRecibir(e);
         if (!listo) { listo = true; clearTimeout(fin); ok(ws); }
       });
@@ -79,7 +90,7 @@ export async function ejecutarCarga(o: OpcionesCarga): Promise<Resultado> {
   const ws0 = await conectar('docente', (e) => {
     docente.version = e.version; docente.paso = e.paso; docente.pasos = e.pasos; docente.pendiente = false;
   });
-  if (!ws0) { cerrarTodo(); throw new Error('El docente no pudo entrar a la sala (¿URL o PIN incorrectos?)'); }
+  if (!ws0) { cerrarTodo(); throw new Error(`El docente no pudo entrar a la sala: ${motivoRechazo || 'sin respuesta del servidor (¿URL incorrecta?)'}`); }
   if (docente.pasos < 2) { cerrarTodo(); throw new Error('La sala necesita al menos 2 pasos para la prueba'); }
 
   const vistos: number[] = new Array(o.alumnos).fill(-1);
@@ -99,12 +110,20 @@ export async function ejecutarCarga(o: OpcionesCarga): Promise<Resultado> {
   }, 1000 / POSES_POR_SEGUNDO);
 
   // Alterna siguiente/anterior según el paso visto, para que cada comando tenga efecto.
+  let comandosEnviados = 0;
+  let comandosSinRespuesta = 0;
+  const espera = o.esperaComandoMs ?? 3000;
   const pasos = setInterval(() => {
     if (ws0.readyState !== WebSocket.OPEN || docente.pendiente) return;
     const t = docente.paso + 1 < docente.pasos ? 'siguiente' : 'anterior';
     docente.pendiente = true;
     envio.set(docente.version + 1, performance.now());
     ws0.send(JSON.stringify({ t: 'comando', c: { t } }));
+    const n = ++comandosEnviados;
+    setTimeout(() => {
+      // Si el estado no llegó, se cuenta y se sigue con el próximo comando.
+      if (docente.pendiente && n === comandosEnviados) { comandosSinRespuesta++; docente.pendiente = false; }
+    }, espera);
   }, Math.max(10, o.pasosCada * 1000));
 
   await dormir(o.segundos * 1000);
@@ -119,6 +138,9 @@ export async function ejecutarCarga(o: OpcionesCarga): Promise<Resultado> {
     latenciaP50: Math.round(percentil(orden, 0.5)),
     latenciaP95: Math.round(percentil(orden, 0.95)),
     // Alumnos que nunca vieron la última versión que el docente observó.
+    comandosEnviados,
+    comandosSinRespuesta,
+    muestras: latencias.length,
     estadosPerdidos: vistos.filter((v) => v < docente.version).length,
   };
   cerrarTodo();
@@ -140,15 +162,20 @@ async function main(): Promise<void> {
   const opts: OpcionesCarga = {
     url: a.url ?? 'ws://localhost:8080/ws',
     sala: a.sala ?? '1234',
-    pin: a.pin ?? process.env.ESTIBA_PIN ?? '1234',
+    pin: a.pin ?? process.env.ESTIBA_PIN ?? '0000',
     alumnos: Number(a.alumnos ?? 30),
     segundos: Number(a.segundos ?? 60),
     pasosCada: Number(a.pasos ?? 2),
   };
+  for (const [nombre, v] of [['--alumnos', opts.alumnos], ['--segundos', opts.segundos], ['--pasos', opts.pasosCada]] as const) {
+    if (!Number.isFinite(v) || v <= 0) { console.error(`El argumento ${nombre} debe ser un número mayor que 0`); process.exit(1); }
+  }
   console.log(`Prueba de carga: ${opts.alumnos} alumnos, ${opts.segundos} s, ${opts.url}`);
   const r = await ejecutarCarga(opts);
   console.log(JSON.stringify(r, null, 2));
-  const mal = r.desconexiones > 0 || r.estadosPerdidos > 0 || r.latenciaP95 > 500 || r.conectados < opts.alumnos;
+  if (r.comandosEnviados > 0 && r.muestras === 0) console.log('No se midió ninguna latencia');
+  if (r.comandosSinRespuesta > 0) console.log(`${r.comandosSinRespuesta} comandos sin respuesta del servidor`);
+  const mal = r.comandosSinRespuesta > 0 || (r.comandosEnviados > 0 && r.muestras === 0) || r.desconexiones > 0 || r.estadosPerdidos > 0 || r.latenciaP95 > 500 || r.conectados < opts.alumnos;
   console.log(mal ? 'RESULTADO: NO APTO' : 'RESULTADO: OK');
   process.exit(mal ? 1 : 0);
 }
