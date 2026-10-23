@@ -1,0 +1,562 @@
+<title>Auditoría Estiba 1</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: mismo sistema que el documento de diseño de Estiba — una columna de lectura (~720px), tablas y diagramas a 1040px, franja de demarcación portuaria arriba */
+:root {
+  --bg: #F1F3F5; --surface: #FFFFFF; --ink: #131C26; --muted: #586474; --line: #D3D9E0;
+  --accent: #1C5DA3; --signal: #E2A300; --signal-ink: #7A5500; --rust: #B0472E; --green: #2E7A4D;
+  --code-bg: #E7EBEF; --sev-alta: #B0472E; --sev-media: #B07A00; --sev-baja: #586474;
+  --sky: #D3E4F1; --quay: #C5CBD2;
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --read: 720px; --wide: 1040px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D131A; --surface: #151D27; --ink: #E5EAF0; --muted: #9AA6B5; --line: #2A3543;
+    --accent: #6EA7E6; --signal: #F0BC2C; --signal-ink: #F0BC2C; --rust: #E07C61; --green: #63C08A;
+    --code-bg: #1B2430; --sev-alta: #E07C61; --sev-media: #F0BC2C; --sev-baja: #9AA6B5;
+    --sky: #1E3348; --quay: #3B4551; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D131A; --surface: #151D27; --ink: #E5EAF0; --muted: #9AA6B5; --line: #2A3543;
+  --accent: #6EA7E6; --signal: #F0BC2C; --signal-ink: #F0BC2C; --rust: #E07C61; --green: #63C08A;
+  --code-bg: #1B2430; --sev-alta: #E07C61; --sev-media: #F0BC2C; --sev-baja: #9AA6B5;
+  --sky: #1E3348; --quay: #3B4551; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+a { color: var(--accent); text-underline-offset: 2px; }
+.stripe { height: 10px; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  background: repeating-linear-gradient(-45deg, var(--signal) 0 14px, var(--ink) 14px 28px); }
+.col { max-width: var(--wide); margin-inline: auto; }
+.read { max-width: var(--read); }
+header.top { padding-block: 40px 28px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--f-mono); font-size: 13px; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(48px, 9vw, 88px); line-height: .92; text-transform: uppercase; margin: 6px 0 14px; }
+.lede { font-size: 19px; line-height: 1.5; margin: 0; max-width: 660px; text-wrap: pretty; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 22px 0 0; font-size: 14px; }
+.meta div { display: flex; flex-direction: column; }
+.meta dt { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.meta dd { margin: 0; font-weight: 500; }
+section { padding-block: 44px 8px; border-bottom: 1px solid var(--line); }
+section:last-of-type { border-bottom: 0; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 34px; line-height: 1.05; text-transform: uppercase; margin: 0 0 16px;
+  display: flex; gap: 14px; align-items: baseline; text-wrap: balance; }
+h2 .n { font-family: var(--f-mono); font-size: 14px; font-weight: 500; color: var(--signal-ink); }
+h3 { font-family: var(--f-display); font-weight: 600; font-size: 22px; text-transform: uppercase; letter-spacing: .02em; margin: 28px 0 8px; }
+p { margin: 0 0 14px; text-wrap: pretty; }
+ul, ol { margin: 0 0 14px; padding-left: 20px; }
+li { margin-bottom: 6px; }
+.small { font-size: 14px; color: var(--muted); }
+code { font-family: var(--f-mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+
+.prio { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 24px; list-style: none; padding: 0; counter-reset: p; }
+.prio li { counter-increment: p; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px 12px; margin: 0; min-width: 0; }
+.prio li::before { content: counter(p); font-family: var(--f-mono); font-size: 13px; color: var(--signal-ink); display: block; margin-bottom: 2px; }
+.prio b { font-family: var(--f-display); font-size: 21px; font-weight: 600; text-transform: uppercase; display: block; line-height: 1.1; margin-bottom: 4px; }
+.prio span { font-size: 14.5px; }
+
+.hallazgos { display: grid; gap: 12px; margin: 16px 0 24px; }
+.h { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--sev); border-radius: 0 4px 4px 0; padding: 14px 18px 4px; }
+.h header { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; margin-bottom: 6px; }
+.h h4 { font-family: var(--f-display); font-size: 22px; font-weight: 600; text-transform: uppercase; margin: 0; line-height: 1.1; }
+.sev { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--sev); border: 1px solid currentColor; border-radius: 3px; padding: 1px 7px; }
+.h dl { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 4px 14px; margin: 0 0 10px; font-size: 15px; }
+.h dt { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); padding-top: 3px; }
+.h dd { margin: 0; min-width: 0; }
+@media (max-width: 560px) { .h dl { grid-template-columns: 1fr; } .h dt { padding-top: 6px; } }
+.alta { --sev: var(--sev-alta); } .media { --sev: var(--sev-media); } .baja { --sev: var(--sev-baja); }
+
+.tbl { overflow-x: auto; margin: 16px 0 24px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; min-width: 640px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); font-weight: 600; background: var(--bg); }
+td.num { font-family: var(--f-mono); font-size: 13.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+figure { margin: 22px 0 26px; }
+.fig { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 14px; overflow-x: auto; }
+.fig svg { display: block; width: 100%; height: auto; min-width: 560px; }
+figcaption { font-size: 14px; color: var(--muted); margin-top: 10px; max-width: var(--read); }
+.sv-t { font-family: var(--f-body); fill: var(--ink); font-size: 14px; }
+.sv-s { font-family: var(--f-body); fill: var(--muted); font-size: 12px; }
+.sv-quay { fill: var(--quay); } .sv-block { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; }
+.sv-path { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 5; }
+.sv-c { fill: none; stroke: var(--accent); stroke-width: 2.5; } .sv-c-far { fill: none; stroke: var(--line); stroke-width: 2; }
+.sv-c-on { fill: var(--accent); fill-opacity: .18; stroke: var(--accent); stroke-width: 3; }
+.sv-prog { fill: none; stroke: var(--signal); stroke-width: 4; stroke-linecap: round; }
+.sv-me { fill: var(--rust); } .sv-cone { fill: var(--rust); opacity: .14; }
+.sv-reach { fill: none; stroke: var(--rust); stroke-width: 1.2; stroke-dasharray: 2 4; opacity: .7; }
+
+.fases { list-style: none; padding: 0; margin: 16px 0 24px; display: grid; gap: 12px; counter-reset: f; }
+.fases > li { counter-increment: f; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 14px 18px 6px; margin: 0;
+  display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 6px 18px; }
+.fases > li > div:first-child { font-family: var(--f-display); text-transform: uppercase; }
+.fases .f-n { font-family: var(--f-mono); font-size: 13px; color: var(--signal-ink); display: block; }
+.fases .f-n::before { content: "Fase " counter(f); }
+.fases .f-t { font-size: 15px; color: var(--muted); font-family: var(--f-body); text-transform: none; display: block; margin-top: 4px; }
+.fases h4 { font-family: var(--f-display); font-size: 22px; font-weight: 600; text-transform: uppercase; margin: 0 0 6px; line-height: 1.1; }
+@media (max-width: 600px) { .fases > li { grid-template-columns: 1fr; } }
+.note { border-left: 4px solid var(--signal); background: var(--surface); padding: 14px 18px; margin: 18px 0 24px; border-radius: 0 4px 4px 0; }
+.note p:last-child, .note ul:last-child { margin-bottom: 0; }
+</style>
+
+<div class="stripe" aria-hidden="true"></div>
+
+<header class="top col">
+  <p class="eyebrow">ESTIBA · PROTOTIPO 1 · REVISIÓN DESPUÉS DE LA PRIMERA PRUEBA</p>
+  <h1>Auditoría</h1>
+  <p class="lede">Qué falla en el prototipo, por qué falla y en qué orden conviene arreglarlo. Junta lo que vio el equipo al probarlo con lo que encontramos al revisar el código y medir las animaciones.</p>
+  <dl class="meta">
+    <div><dt>Fecha</dt><dd>23 oct 2026</dd></div>
+    <div><dt>Versión revisada</dt><dd><code>main</code> en 6519623</dd></div>
+    <div><dt>Tests</dt><dd>261 pasan · tipos limpios</dd></div>
+    <div><dt>Probado en</dt><dd>celular con Cardboard, proyector</dd></div>
+  </dl>
+</header>
+
+<main class="col">
+
+<section id="resumen">
+  <h2><span class="n">01</span>Resumen</h2>
+  <div class="read">
+    <p>La base técnica funciona: sincronización entre dispositivos, editor, servidor y vista doble. Lo que falla es lo que se ve y se siente adentro del visor. Las animaciones están armadas como tramos rectos fijos para una sola escena, los modelos son cajas sin terminar, y la interfaz del alumno tiene elementos que se le pegan a la vista. Además, el alumno no puede moverse.</p>
+    <p>Cinco cosas para hacer primero, en este orden:</p>
+  </div>
+  <ol class="prio">
+    <li><b>Comodidad en el visor</b><span>Sacar el punto verde, anclar las fichas en el espacio, cambiar el resaltado amarillo y eliminar el parpadeo del piso.</span></li>
+    <li><b>Caminito de círculos</b><span>Que el alumno pueda moverse mirando círculos en el piso, como pidió el equipo.</span></li>
+    <li><b>Vehículos que giran</b><span>Rutas con curvas y rumbo, sobre carriles que no atraviesen pilas ni grúas.</span></li>
+    <li><b>Grúa creíble</b><span>Cables que se estiran, movimientos en el orden real y ningún contenedor duplicado.</span></li>
+    <li><b>Animaciones para cualquier escena</b><span>Pasar de cuatro animaciones fijas a operaciones logísticas que el docente arma en el editor.</span></li>
+    <li><b>Editor con trazados</b><span>Vías, carriles y caminos con largo libre, curvas y uniones; deshacer y duplicar.</span></li>
+    <li><b>Centros terrestres</b><span>Piezas, interiores y operaciones para depósitos y centros de distribución, con una clase de ejemplo.</span></li>
+  </ol>
+</section>
+
+<section id="reportado">
+  <h2><span class="n">02</span>Lo que vio el equipo y su causa</h2>
+  <div class="read">
+    <p>Cada problema reportado tiene una causa concreta en el código. Los cruces se midieron con un script que recorre cada animación cada 0,1 s y compara el contenedor y el tractor con la geometría real de la escena.</p>
+  </div>
+  <div class="hallazgos">
+
+    <article class="h alta">
+      <header><h4>Camiones que avanzan de costado</h4><span class="sev">Alta</span></header>
+      <dl>
+        <dt>Medido</dt><dd>El rumbo del tractor y la dirección en que avanza llegan a diferir <b>90°</b>, en la descarga (≈ 23 s) y en el recorrido (≈ 10 s).</dd>
+        <dt>Causa</dt><dd>Cada tramo interpola la posición en línea recta y, al mismo tiempo, gira el vehículo de a poco a lo largo de todo el tramo (<code>animaciones.ts</code>, tramos con <code>giro</code>). El vehículo gira mientras se desliza, en vez de doblar en la esquina. Para ir y volver de su lugar, el tractor mezcla posición y rumbo con un único factor (<code>moverTractor</code>), así que se desplaza en diagonal.</dd>
+        <dt>Arreglo</dt><dd>El rumbo sale siempre de la dirección de avance. Las esquinas se redondean con un radio de giro de unos 8 m. La velocidad es constante (unos 15 km/h dentro de la terminal) y el tiempo se calcula del largo del recorrido, no al revés.</dd>
+      </dl>
+    </article>
+
+    <article class="h alta">
+      <header><h4>Vehículos y contenedores que atraviesan objetos</h4><span class="sev">Alta</span></header>
+      <dl>
+        <dt>Medido</dt><dd>
+          <ul>
+            <li>En el recorrido, el tractor 2 pisa la primera fila del patio A durante <b>23 s</b> (8–31 s). El carril pasa a 1 m del bloque y el contenedor mide 2,44 m de ancho.</li>
+            <li>Al volver a su lugar, el tractor cruza el patio A en diagonal.</li>
+            <li>En la descarga, la RTG baja un contenedor de 40' sobre un bloque de pilas de 20'. No coincide con ninguna ranura y se mete en las pilas vecinas (28–40 s).</li>
+            <li>En el recorrido, el contenedor animado sale de una pila que nunca pierde su contenedor, así que durante 20 s hay dos en el mismo lugar.</li>
+          </ul></dd>
+        <dt>Causa</dt><dd>No hay carriles ni lugares de apilado reales. Los caminos son coordenadas fijas (<code>FILA_DESTINO</code>, <code>ALTO_PILA</code>) ajustadas a ojo para la semilla 7 del patio A, y el bloque no sabe que le sacaron o le pusieron un contenedor.</dd>
+        <dt>Arreglo</dt><dd>Una red de carriles por escena: líneas en el piso entre bloques, muelle, puerta y vía. Los vehículos buscan el camino más corto por esa red. El bloque de patio expone sus ranuras reales (fila, bahía, nivel) y la operación saca o agrega una caja del bloque. Usar contenedores de 20' en los bloques de 20', o bloques con bahías de 40'.</dd>
+      </dl>
+    </article>
+
+    <article class="h alta">
+      <header><h4>La grúa se mueve raro</h4><span class="sev">Alta</span></header>
+      <dl>
+        <dt>Causa</dt><dd>
+          <ul>
+            <li>Los cables son parte fija del carro (<code>gen_modelos.py</code>). Cuando el spreader baja, el contenedor queda lejos de los cables, colgando de la nada.</li>
+            <li>Carro y spreader se mueven a la vez, con arranque y frenado suaves en cada tramo de 4 a 8 s. Una grúa real primero levanta, después traslada y después baja.</li>
+            <li>El contenedor que cuelga del modelo en reposo queda metido entre las pilas del buque (a 19–21 m de altura, con pilas hasta 26 m).</li>
+          </ul></dd>
+        <dt>Arreglo</dt><dd>Cables como piezas que se estiran entre el carro y el spreader. Movimiento en tres fases: izado, traslación con el carro y descenso, con velocidades del orden de las reales. Sacar el contenedor colgado del modelo en reposo.</dd>
+      </dl>
+    </article>
+
+    <article class="h media">
+      <header><h4>El puerto parpadea o se corta</h4><span class="sev">Media</span></header>
+      <dl>
+        <dt>Causa</dt><dd>La cámara del alumno dibuja de 0,1 m a 3000 m (<code>alumno.ts:144</code>), lo que deja poca precisión de profundidad en un celular. Varias superficies están casi en el mismo plano:
+          <ul>
+            <li>las líneas pintadas, a 3 cm sobre el piso;</li>
+            <li>el pavimento de la terminal, 5 cm por debajo del muelle;</li>
+            <li>la defensa del muelle, en el mismo plano que la losa.</li>
+          </ul>
+          A distancia, el celular no sabe cuál va delante y parpadean. Además, el borde del resaltado se dibuja sin prueba de profundidad, así que se ve a través de todo.</dd>
+        <dt>Arreglo</dt><dd>Plano cercano a 0,5 m y lejano a 1500 m. Separar las superficies al menos 10 cm, o usar desplazamiento de polígonos en las pinturas. El borde del resaltado con prueba de profundidad.</dd>
+      </dl>
+    </article>
+
+    <article class="h media">
+      <header><h4>Modelos 3D poco terminados</h4><span class="sev">Media</span></header>
+      <dl>
+        <dt>Causa</dt><dd>Todo sale de cajas generadas por código: sin bisel, sin sombras horneadas (quedaron fuera por tiempo) y sin detalle.
+          <ul>
+            <li>El tren tiene los bogies a 15 cm del riel.</li>
+            <li>No hay camiones externos, personas ni señalización que den escala.</li>
+            <li>La superestructura del buque son tres cajas.</li>
+          </ul></dd>
+        <dt>Arreglo</dt><dd>Hay que decidir la fuente (ver «Decisiones», sección 07). Mejorar los scripts de Blender alcanza para grúas y contenedores. Para vehículos y personas conviene una biblioteca libre (Kenney o Quaternius, CC0) o generarlos con IA a partir de una imagen.</dd>
+      </dl>
+    </article>
+
+    <article class="h media">
+      <header><h4>El círculo verde molesta</h4><span class="sev">Media</span></header>
+      <dl>
+        <dt>Causa</dt><dd>El indicador de conexión es un círculo de 40 px en cada ojo, siempre visible (<code>alumno.ts</code>, <code>crearIndicadores</code>).</dd>
+        <dt>Arreglo</dt><dd>Que no se vea cuando todo anda bien, y que aparezca un aviso rojo solo si se pierde la conexión.</dd>
+      </dl>
+    </article>
+
+    <article class="h media">
+      <header><h4>Carteles que se pegan a la pantalla</h4><span class="sev">Media</span></header>
+      <dl>
+        <dt>Causa</dt><dd>Si la ficha queda fuera de la vista, el código la mueve para que siga a la mirada (<code>fichas.ts</code>, <code>mantenerEnCampo</code>). Además se escala con la distancia para medir siempre lo mismo en pantalla, así que se siente pegada a la cara.</dd>
+        <dt>Arreglo</dt><dd>Anclar la ficha al lado de la pieza, en el mundo, con tamaño fijo en metros. Si el alumno gira la cabeza, la deja de ver; un ícono «i» sobre la pieza indica que hay una ficha.</dd>
+      </dl>
+    </article>
+
+    <article class="h media">
+      <header><h4>El resaltado tiñe toda la vista</h4><span class="sev">Media</span></header>
+      <dl>
+        <dt>Causa</dt><dd>El resaltado es una caja amarilla translúcida del tamaño de la pieza. Si el alumno está parado debajo de una grúa resaltada, queda adentro de la caja y todo se ve amarillento.</dd>
+        <dt>Arreglo</dt><dd>Solo el contorno, sin relleno, o un brillo en la silueta de la pieza.</dd>
+      </dl>
+    </article>
+
+    <article class="h alta">
+      <header><h4>El alumno no puede moverse</h4><span class="sev">Alta</span></header>
+      <dl>
+        <dt>Causa</dt><dd>Fue una decisión del diseño original, para evitar mareos: el alumno solo cambia de lugar cuando el docente cambia de paso o usa «Traer a todos acá». La prueba mostró que hace falta.</dd>
+        <dt>Arreglo</dt><dd>El caminito de círculos de la sección 04.</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section id="sin-uso">
+  <h2><span class="n">03</span>Piezas y contenido sin uso</h2>
+  <div class="read">
+    <p>Hay piezas en la escena que no cumplen ninguna función en la clase, y las animaciones solo funcionan con la escena de la demo.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Elemento</th><th>Estado</th><th>Propuesta</th></tr></thead>
+      <tbody>
+        <tr><td>Puerta de acceso (<code>puerta-1</code>)</td><td>Solo decorado. El paso 6 se llama «Salida por puerta o tren», pero ningún vehículo la cruza: no hay camiones externos.</td><td>Agregar un camión externo que entre, cargue y salga por la puerta, o quitarla y renombrar el paso.</td></tr>
+        <tr><td>Depósito</td><td>Está en el catálogo del editor, pero no en la escena ni en ninguna clase.</td><td>Dejarlo para la clase de centro de distribución; no ponerlo en la terminal.</td></tr>
+        <tr><td>Grúas STS 1 y 3</td><td>Fijas, nunca se mueven.</td><td>Aceptable como contexto. Con el sistema de operaciones podrían trabajar en paralelo.</td></tr>
+        <tr><td>Patio B</td><td>Solo es el destino del recorrido.</td><td>Aceptable.</td></tr>
+        <tr><td>Las 4 animaciones</td><td>Nombran módulos fijos (<code>buque-1</code>, <code>sts-2</code>, <code>tractor-1</code>, <code>tractor-2</code>, <code>patio-a</code>, <code>patio-b</code>, <code>rtg-1</code>, <code>tren-1</code>) y alturas ajustadas a mano. Si el docente borra o mueve algo en el editor, la animación desaparece o atraviesa cosas. El editor no permite crear animaciones.</td><td>Reemplazarlas por operaciones logísticas (sección 05).</td></tr>
+        <tr><td>Las 6 fichas</td><td>Datos de ejemplo sin validar.</td><td>Validarlas con el docente antes de usarlas en una clase real.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="moverse">
+  <h2><span class="n">04</span>Moverse por un caminito de círculos</h2>
+  <div class="read">
+    <p>Lo que pidió el equipo: círculos en el piso que el alumno mira unos segundos para trasladarse hasta ellos, en fila y lo bastante cerca unos de otros como para formar un camino.</p>
+  </div>
+  <figure>
+    <div class="fig">
+      <svg viewBox="0 0 860 300" role="img" aria-label="Vista desde arriba: un camino de círculos entre el muelle y el patio; el alumno está en un círculo, mira el siguiente y un anillo amarillo muestra el avance de la mirada; los círculos lejanos se ven apagados">
+        <rect class="sv-quay" x="0" y="0" width="860" height="60"/>
+        <text class="sv-s" x="12" y="36">Muelle</text>
+        <rect class="sv-block" x="420" y="150" width="380" height="80"/>
+        <text class="sv-s" x="430" y="250">Bloque de patio</text>
+        <path class="sv-path" d="M80 110 L 300 110 Q 360 110 360 170 L 360 270"/>
+        <circle class="sv-c-far" cx="80" cy="110" r="13"/>
+        <circle class="sv-c" cx="150" cy="110" r="13"/>
+        <circle class="sv-me" cx="220" cy="110" r="9"/>
+        <path class="sv-cone" d="M220 110 L 305 80 L 305 140 Z"/>
+        <circle class="sv-reach" cx="220" cy="110" r="100"/>
+        <circle class="sv-c-on" cx="290" cy="110" r="13"/>
+        <path class="sv-prog" d="M290 97 A 13 13 0 1 1 277 110"/>
+        <circle class="sv-c" cx="345" cy="135" r="13"/>
+        <circle class="sv-c-far" cx="360" cy="200" r="13"/>
+        <circle class="sv-c-far" cx="360" cy="265" r="13"/>
+        <text class="sv-t" x="196" y="150" style="font-weight:600">Alumno</text>
+        <text class="sv-t" x="268" y="80" style="font-weight:600">Mirando · 1 s de 1,5 s</text>
+        <text class="sv-s" x="560" y="96">Se ven los círculos a menos de 25 m.</text>
+        <text class="sv-s" x="560" y="114">Los más lejos se ven apagados u ocultos.</text>
+        <text class="sv-s" x="560" y="132">Separación entre círculos: 6 a 8 m.</text>
+      </svg>
+    </div>
+    <figcaption>Los círculos siguen el camino. Al mirar uno 1,5 s se completa el anillo, hay un fundido de 0,3 s y el alumno aparece parado ahí, mirando hacia donde ya miraba. La cámara nunca gira sola.</figcaption>
+  </figure>
+  <div class="read">
+    <h3>Cómo funciona</h3>
+    <ul>
+      <li><strong>Los caminos se dibujan en el editor</strong> como una pieza nueva, «Camino»: el docente traza una línea sobre el piso y la herramienta coloca un círculo cada 6–8 m. Para la terminal de la demo dejamos dos o tres caminos ya armados: muelle, patio, puerta y vía.</li>
+      <li><strong>Se ven solo los círculos cercanos</strong>, hasta 25 m: el siguiente y el anterior de cada camino. Así no se llena la vista de círculos.</li>
+      <li><strong>Mirar 1,5 s y trasladarse:</strong> un anillo amarillo se completa alrededor del círculo; después, fundido de 0,3 s y teletransporte a 1,7 m de altura de ojos. Nada de desplazamiento continuo, porque es lo que marea.</li>
+      <li><strong>Los círculos ganan sobre las etiquetas:</strong> si la retícula está sobre un círculo, no se cuenta la mirada para mostrar el nombre de una pieza.</li>
+      <li><strong>El docente sigue mandando:</strong> al cambiar de paso o usar «Traer a todos acá», todos vuelven al lugar del paso. Un interruptor nuevo, «Recorrido libre», enciende y apaga los círculos para toda la sala.</li>
+      <li><strong>Cada uno se mueve solo en su celular:</strong> la posición del alumno no se manda al servidor ni a los demás.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="animaciones">
+  <h2><span class="n">05</span>De animaciones de demo a operaciones</h2>
+  <div class="read">
+    <p>Hoy cada animación es una lista fija de tramos escrita para la escena de la demo. Proponemos reemplazarla por <strong>operaciones logísticas</strong> que se calculan a partir de la escena, sea cual sea:</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Operación</th><th>Qué hace</th><th>Lo que necesita de la escena</th></tr></thead>
+      <tbody>
+        <tr><td>Atracar</td><td>El buque entra con remolcadores y se amarra.</td><td>Muelle y buque.</td></tr>
+        <tr><td>Descargar</td><td>Una grúa STS toma un contenedor de una pila del buque y lo deja en un tractor.</td><td>Grúa sobre el muelle, buque al costado, ranuras del buque.</td></tr>
+        <tr><td>Trasladar</td><td>Un tractor lleva el contenedor por la red de carriles, con giros reales.</td><td>Red de carriles, punto de origen y de destino.</td></tr>
+        <tr><td>Apilar o retirar</td><td>Una RTG pone o saca un contenedor en una ranura libre del bloque.</td><td>Bloque de patio con sus ranuras y la RTG sobre él.</td></tr>
+        <tr><td>Despachar</td><td>Sale en camión por la puerta o en tren.</td><td>Puerta o vía, camión externo o tren.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="read">
+    <p>En el editor, cada paso de la clase elige una cadena de operaciones, por ejemplo «Descargar 1 contenedor del buque 1 con la grúa 2 y llevarlo al patio A». La sincronización con el reloj del servidor se mantiene igual: todos ven lo mismo y quien entra tarde aparece en el mismo punto.</p>
+    <p>Más adelante, este mismo motor permite una <strong>simulación continua</strong>: varias grúas y tractores trabajando a la vez. Eso es lo que daría vida a la terminal y abre la puerta al modo Construir, donde los alumnos cambian el layout y ven cómo cambian los flujos.</p>
+  </div>
+</section>
+
+<section id="editor">
+  <h2><span class="n">06</span>El editor</h2>
+  <div class="read">
+    <p>El editor sirve para colocar piezas, pero es incómodo para construir una instalación de verdad. La causa de fondo es que trata todo como bloques rectangulares sobre una grilla de 10 m.</p>
+  </div>
+  <div class="hallazgos">
+    <article class="h alta">
+      <header><h4>Vías, carriles y muelles rígidos</h4><span class="sev">Alta</span></header>
+      <dl>
+        <dt>Hoy</dt><dd>La vía, el muelle y (más adelante) los carriles y caminos son rectángulos.
+          <ul>
+            <li>El largo se cambia solo en saltos de 10 m, y la vía no puede medir menos de 20 m.</li>
+            <li>Solo se giran de a 90°.</li>
+            <li>No se pueden curvar, ni unir dos tramos, ni hacer un desvío.</li>
+          </ul></dd>
+        <dt>Propuesta</dt><dd>Una herramienta de <strong>trazado</strong>, como las carreteras de un juego de construcción de ciudades:
+          <ul>
+            <li>Se hace clic en puntos sobre el piso y la herramienta dibuja tramos rectos y curvas con un radio mínimo según el tipo (vía: unos 150 m; carril: 8 m).</li>
+            <li>Los extremos se imantan a otros trazados para unirlos o hacer desvíos.</li>
+            <li>El largo es libre, en metros.</li>
+          </ul>
+          La misma herramienta arma vías, carriles de tractores y caminos de círculos. Por eso conviene hacerla antes de la fase de animaciones: la red de carriles de las operaciones sale de acá.</dd>
+      </dl>
+    </article>
+    <article class="h media">
+      <header><h4>Grilla gruesa y giros de 90°</h4><span class="sev">Media</span></header>
+      <dl>
+        <dt>Hoy</dt><dd>Todo se coloca en celdas de 10 m y solo se gira de a 90°. No se puede alinear una grúa con el borde del muelle a menos de 10 m, ni poner un bloque en diagonal.</dd>
+        <dt>Propuesta</dt><dd>Posición libre con imán opcional: a la grilla de 1 m, a bordes de otras piezas o a un trazado (una grúa se imanta al riel del muelle, una RTG al bloque). Giro libre con imán cada 15°.</dd>
+      </dl>
+    </article>
+    <article class="h media">
+      <header><h4>Faltan atajos básicos</h4><span class="sev">Media</span></header>
+      <dl>
+        <dt>Hoy</dt><dd>No se puede deshacer, copiar, duplicar ni seleccionar varias piezas a la vez. Las piezas solo se editan desde la vista de arriba, y la vista 3D chica no permite tocar nada.</dd>
+        <dt>Propuesta</dt><dd><code>Ctrl+Z</code> y <code>Ctrl+Y</code> para deshacer y rehacer, <code>Ctrl+D</code> para duplicar, selección con recuadro, y mover también desde la vista 3D.</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section id="terrestre">
+  <h2><span class="n">07</span>Centros logísticos terrestres</h2>
+  <div class="read">
+    <p>Estiba se pensó para cualquier instalación, pero hoy solo sirve para puertos. Para centros de distribución, depósitos o plataformas de cross-docking faltan piezas, edición de interiores, operaciones y una escena de ejemplo.</p>
+  </div>
+  <div class="hallazgos">
+    <article class="h alta">
+      <header><h4>Faltan piezas</h4><span class="sev">Alta</span></header>
+      <dl>
+        <dt>Hoy</dt><dd>La única pieza terrestre es el «Depósito»: una caja blanca con techo y portones, sin interior.</dd>
+        <dt>Falta</dt><dd>
+          <ul>
+            <li><strong>Edificio con interior:</strong> nave con muros, columnas y techo que se puede ocultar para ver adentro.</li>
+            <li><strong>Andenes de carga</strong> con portones, niveladores y numeración.</li>
+            <li><strong>Racks selectivos</strong> con cantidad de niveles y largo configurables, y estanterías de picking.</li>
+            <li><strong>Cintas transportadoras</strong>, trazables con la misma herramienta de las vías.</li>
+            <li><strong>Vehículos:</strong> camión con semirremolque, furgón, autoelevador y transpaleta.</li>
+            <li><strong>Pallets y cajas</strong> como unidad de carga, además del contenedor.</li>
+            <li><strong>Zonas pintadas:</strong> recepción, almacenamiento, picking, consolidación, expedición.</li>
+            <li><strong>Exterior:</strong> playa de camiones, balanza, garita y oficinas.</li>
+          </ul></dd>
+      </dl>
+    </article>
+    <article class="h alta">
+      <header><h4>Editar interiores</h4><span class="sev">Alta</span></header>
+      <dl>
+        <dt>Hoy</dt><dd>El editor coloca piezas en celdas de 10 m vistas desde arriba. Dentro de un depósito eso no alcanza: un pasillo entre racks mide unos 3 m y un pallet 1,2 m.</dd>
+        <dt>Propuesta</dt><dd>
+          <ul>
+            <li>Posición libre con imán a 0,5 m, ya propuesta en la sección 06.</li>
+            <li>Al seleccionar un edificio, «entrar» en él: la vista de arriba muestra solo su planta, con el techo oculto.</li>
+            <li>Racks que se colocan en hileras, con un parámetro de ancho de pasillo.</li>
+            <li>Las zonas se pintan con la herramienta de trazado, como áreas cerradas.</li>
+          </ul></dd>
+      </dl>
+    </article>
+    <article class="h alta">
+      <header><h4>Operaciones de un centro de distribución</h4><span class="sev">Alta</span></header>
+      <dl>
+        <dt>Falta</dt><dd>Sobre el mismo motor de operaciones de la sección 05:
+          <ul>
+            <li><strong>Recibir:</strong> el camión atraca en un andén y el autoelevador descarga pallets a la zona de recepción.</li>
+            <li><strong>Almacenar:</strong> el autoelevador lleva un pallet a una posición libre del rack.</li>
+            <li><strong>Preparar pedido:</strong> el operario recorre las estanterías de picking y arma un pallet mixto.</li>
+            <li><strong>Cross-docking:</strong> de un andén de entrada directo a uno de salida, sin pasar por el rack.</li>
+            <li><strong>Despachar:</strong> se carga el camión y sale por la playa.</li>
+          </ul>
+          Con esto el docente puede mostrar, por ejemplo, la diferencia de recorridos entre un layout en U y uno en I, que es un tema clásico de la carrera.</dd>
+      </dl>
+    </article>
+    <article class="h media">
+      <header><h4>Una escena de ejemplo</h4><span class="sev">Media</span></header>
+      <dl>
+        <dt>Falta</dt><dd>Una segunda clase precargada, «Centro de distribución», con 5 o 6 pasos (recepción, almacenamiento, picking, cross-docking, expedición), fichas propias y caminitos de círculos por los pasillos. Es la mejor prueba de que la herramienta no es solo para puertos.</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section id="otros">
+  <h2><span class="n">08</span>Otros pendientes técnicos</h2>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Tema</th><th>Estado</th><th>Severidad</th></tr></thead>
+      <tbody>
+        <tr><td>Quest 3</td><td>VR, menú de muñeca y maqueta en AR nunca se probaron en el visor.</td><td>Alta</td></tr>
+        <tr><td>Rendimiento en celulares</td><td>Sin medir con la escena completa y las animaciones. Existe <code>?sombras=0</code> como palanca.</td><td>Media</td></tr>
+        <tr><td>Render gratis</td><td>Al dormirse se pierden las escenas editadas y el paso actual vuelve al 1.</td><td>Media</td></tr>
+        <tr><td>Seguridad</td><td>PIN de 4 dígitos en la URL, con límite de intentos. Alcanza para el prototipo; cambiarlo después de cada demo.</td><td>Baja</td></tr>
+        <tr><td>Editor</td><td>El arrastre no tiene límites y las listas de fichas están escritas a mano (lo demás está en la sección 06).</td><td>Baja</td></tr>
+        <tr><td>Calidad de código</td><td>Unos 60 detalles menores anotados en las revisiones (tests faltantes, asignaciones por cuadro, comentarios viejos). Ninguno bloquea.</td><td>Baja</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="falta">
+  <h2><span class="n">09</span>Lo que falta, sin costo</h2>
+  <div class="read">
+    <p>Funciones que no están en el prototipo y se pueden hacer sin pagar ningún servicio, licencia ni dispositivo nuevo. Solo cuestan tiempo de desarrollo. Las que dependen de algo pago quedaron aparte, al final.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Función</th><th>Para qué sirve</th><th>Fase</th></tr></thead>
+      <tbody>
+        <tr><td colspan="3"><strong>Para enseñar</strong></td></tr>
+        <tr><td>Indicadores en vivo</td><td>Contenedores o pallets por hora, ocupación del patio o del rack, espera de camiones, distancia recorrida. Convierte la animación en una simulación que se puede analizar.</td><td class="num">7</td></tr>
+        <tr><td>Comparar escenarios</td><td>Dos versiones de la misma instalación lado a lado con sus indicadores, por ejemplo 2 o 3 grúas, o un depósito en U contra uno en I.</td><td class="num">7</td></tr>
+        <tr><td>Consignas y preguntas</td><td>Preguntas dentro de la clase que el alumno responde mirando una opción; el docente ve los resultados al momento.</td><td class="num">7</td></tr>
+        <tr><td>Modo autónomo</td><td>El alumno recorre una clase solo, a su ritmo, como tarea fuera del aula.</td><td class="num">7</td></tr>
+        <tr><td>Atención de la sala</td><td>El contador «18 de 22 mirando» y un mapa de calor por paso de hacia dónde miró la clase.</td><td class="num">7</td></tr>
+        <tr><td colspan="3"><strong>Para el docente</strong></td></tr>
+        <tr><td>Biblioteca de clases</td><td>Guardar, duplicar y exportar o importar clases como archivo, para compartirlas entre docentes sin depender del servidor.</td><td class="num">5</td></tr>
+        <tr><td>Plantillas con parámetros</td><td>«Terminal con N grúas y M bloques» o «depósito de X racks»: se arma la escena en segundos y se ajusta después.</td><td class="num">5</td></tr>
+        <tr><td>Importar modelos propios</td><td>Subir un .glb para piezas que no están en el catálogo (por ejemplo, de Blender o de una biblioteca CC0).</td><td class="num">4</td></tr>
+        <tr><td colspan="3"><strong>Para el aula real</strong></td></tr>
+        <tr><td>Servidor local en el aula</td><td>Todo funciona con una laptop y un router, sin internet ni Render. Es el plan B más robusto, y además evita el problema del plan gratis que se duerme.</td><td class="num">1</td></tr>
+        <tr><td>Estado de la sala</td><td>Pantalla del docente con quién entró, quién se desconectó y la batería de cada celular.</td><td class="num">1</td></tr>
+        <tr><td>Prueba de carga</td><td>Un script que simula 30 alumnos conectados, para confirmar que el servidor aguanta una clase completa.</td><td class="num">1</td></tr>
+        <tr><td>Sonido</td><td>Ambiente de puerto o depósito y un aviso al cambiar de paso, con sonidos de licencia CC0.</td><td class="num">4</td></tr>
+        <tr><td colspan="3"><strong>Para crecer</strong></td></tr>
+        <tr><td>Alumnos que construyen</td><td>El modo Construir original: cada equipo edita su propia sala con el editor y compara sus indicadores.</td><td class="num">7</td></tr>
+        <tr><td>AR en celulares Android</td><td>La maqueta sobre la mesa desde el celular, con WebXR. En iPhone, solo ver un modelo suelto con la vista AR que ya trae el sistema.</td><td class="num">7</td></tr>
+        <tr><td>Escenarios reales desde mapas</td><td>Puerto de Montevideo o Canal de Panamá a partir de OpenStreetMap, que es gratuito citando la fuente.</td><td class="num">7</td></tr>
+        <tr><td colspan="3"><strong>Calidad</strong></td></tr>
+        <tr><td>Pruebas de punta a punta</td><td>Un navegador automático (Playwright) abre docente, alumno y proyector y recorre la clase completa en cada cambio.</td><td class="num">1</td></tr>
+        <tr><td>Registro de errores propio</td><td>Los celulares mandan sus errores al mismo servidor de Estiba, y el docente o el equipo los ve en una página.</td><td class="num">1</td></tr>
+        <tr><td>Privacidad</td><td>Definir qué se guarda de los alumnos (respuestas, atención) y por cuánto tiempo, sobre todo si hay menores.</td><td class="num">7</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">
+    <p><strong>Quedaron afuera por tener costo:</strong></p>
+    <ul>
+      <li>Asistente con IA para armar escenas y modelos generados con IA (consumen créditos).</li>
+      <li>Servicios externos de registro de errores en planes pagos.</li>
+      <li>Hosting pago (Render con disco).</li>
+      <li>App Clips para WebXR en iPhone.</li>
+      <li>Comprar celulares o visores para probar.</li>
+    </ul>
+    <p>Las cuentas de docentes se pueden hacer gratis en el propio servidor, pero conviene esperar a tener la biblioteca de clases.</p>
+  </div>
+</section>
+
+<section id="pasos">
+  <h2><span class="n">10</span>Próximos pasos</h2>
+  <ol class="fases">
+    <li>
+      <div><span class="f-n"></span><span class="f-t">3–4 días</span></div>
+      <div><h4>Comodidad en el visor</h4>
+        <ul><li>Indicador de conexión solo cuando falla.</li><li>Fichas ancladas en el mundo, con ícono «i».</li><li>Resaltado solo con contorno.</li><li>Planos de cámara y superficies separadas, para cortar el parpadeo.</li><li>Servidor local en el aula, estado de la sala, prueba de carga, pruebas de punta a punta y registro de errores propio.</li></ul></div>
+    </li>
+    <li>
+      <div><span class="f-n"></span><span class="f-t">4–6 días</span></div>
+      <div><h4>Trazados y caminito de círculos</h4>
+        <ul><li>Herramienta de trazado en el editor, con tramos, curvas, uniones y desvíos, para vías, carriles y caminos.</li><li>Caminito: círculos cercanos, mirada de 1,5 s, fundido y teletransporte.</li><li>Interruptor «Recorrido libre» para el docente.</li><li>Deshacer, duplicar, posición libre con imán y giro libre.</li><li>Caminos y carriles ya armados en la terminal de la demo.</li></ul></div>
+    </li>
+    <li>
+      <div><span class="f-n"></span><span class="f-t">3–5 días</span></div>
+      <div><h4>Animaciones correctas</h4>
+        <ul><li>Rutas por la red de carriles trazada en la fase 2, con curvas y el rumbo según el avance.</li><li>Ranuras reales en los bloques y contenedores de 20'.</li><li>Grúa con cables que se estiran y movimiento en tres fases.</li><li>Sin contenedores duplicados.</li><li>Una prueba automática que falle si algo atraviesa la geometría: el script de esta auditoría, convertido en test.</li></ul></div>
+    </li>
+    <li>
+      <div><span class="f-n"></span><span class="f-t">3–5 días</span></div>
+      <div><h4>Modelos</h4>
+        <ul><li>Según la fuente que elijan: biseles y sombras horneadas en Blender, más vehículos y personas de una biblioteca libre o generados con IA.</li><li>Camión externo para la puerta.</li><li>Importar modelos propios (.glb) y sonido ambiente.</li></ul></div>
+    </li>
+    <li>
+      <div><span class="f-n"></span><span class="f-t">1–2 semanas</span></div>
+      <div><h4>Operaciones en el editor</h4>
+        <ul><li>Las cinco operaciones de la sección 05, configurables por paso.</li><li>Después, la simulación continua de la terminal.</li><li>Biblioteca de clases con exportar e importar, y plantillas con parámetros.</li></ul></div>
+    </li>
+    <li>
+      <div><span class="f-n"></span><span class="f-t">2–3 semanas</span></div>
+      <div><h4>Centros logísticos terrestres</h4>
+        <ul><li>Piezas: edificio con interior, andenes, racks, cintas, camión, autoelevador, pallets y zonas.</li><li>Edición de interiores.</li><li>Operaciones: recibir, almacenar, preparar pedido, cross-docking y despachar.</li><li>Clase precargada «Centro de distribución».</li></ul></div>
+    </li>
+    <li>
+      <div><span class="f-n"></span><span class="f-t">3–4 semanas</span></div>
+      <div><h4>Herramienta de ingeniería</h4>
+        <ul><li>Indicadores en vivo y comparación de escenarios lado a lado.</li><li>Consignas y preguntas, modo autónomo y atención de la sala.</li><li>Alumnos que construyen en equipos.</li><li>AR en celulares Android.</li><li>Escenarios reales desde OpenStreetMap.</li><li>Política de privacidad de los datos de alumnos.</li></ul></div>
+    </li>
+    <li>
+      <div><span class="f-n"></span><span class="f-t">continuo</span></div>
+      <div><h4>Contenido y pruebas</h4>
+        <ul><li>Validar las fichas con el docente.</li><li>Probar en el Quest.</li><li>Medir los cuadros por segundo en tres celulares.</li><li>Decidir la clase siguiente (por ejemplo, centro de distribución).</li></ul></div>
+    </li>
+  </ol>
+
+  <h3>Decisiones que necesitamos del equipo</h3>
+  <div class="note">
+    <ol>
+      <li><strong>Puerta de acceso:</strong> ¿la animamos con un camión externo o la sacamos?</li>
+      <li><strong>Modelos:</strong> ¿mejoramos los de Blender, sumamos una biblioteca libre o probamos generarlos con IA?</li>
+      <li><strong>Recorrido libre:</strong> ¿encendido por defecto, o lo habilita el docente?</li>
+      <li><strong>Orden:</strong> ¿empezamos por comodidad y movimiento (fases 1 y 2), como proponemos, o por las animaciones?</li>
+      <li><strong>Centros terrestres:</strong> ¿qué instalación terrestre usa primero la carrera? Con un caso real (depósito, centro de distribución de retail, plataforma de cross-docking) armamos la escena de ejemplo sobre algo que el docente ya enseña.</li>
+    </ol>
+  </div>
+</section>
+
+</main>
