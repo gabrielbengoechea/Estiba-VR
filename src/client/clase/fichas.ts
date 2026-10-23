@@ -2,7 +2,7 @@
 // y la vista explotada de la grúa STS cuando la ficha lo pide.
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
-import type { EstadoSala, Ficha } from '../../shared/tipos';
+import type { EstadoSala, Ficha, Vec3 } from '../../shared/tipos';
 import type { EscenaViva } from '../escena/construirEscena';
 import fuenteNormal from '@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff?url';
 import fuenteSemi from '@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff?url';
@@ -30,6 +30,28 @@ export const PX_OJO_ALTO = 390;
 export const CAMPO_VERTICAL_GRADOS = 80;
 export const ESCALA_VISOR = 8.2;
 export const ESCALA_ESCRITORIO = 1;
+/** Ancho (m) del panel en el visor: fijo, no depende de la distancia. */
+export const TAMANO_VISOR_M = 6;
+/** Separación (m) entre la caja de la pieza y el panel anclado. */
+const SEPARACION_ANCLA = 2;
+/** Diámetro (m) del ícono «i» y altura (m) a la que flota sobre la caja de la pieza. */
+const DIAMETRO_ICONO = 1.5;
+const ALTURA_ICONO = 2;
+
+/**
+ * Punto fijo del panel en el visor: al costado de la caja de la pieza del lado del observador, a 1/3 de su altura
+ * y `SEPARACION_ANCLA` m afuera de la caja. Se calcula una sola vez al abrir la ficha.
+ */
+export function posicionAnclada(caja: { min: Vec3; max: Vec3 }, ojo: Vec3): Vec3 {
+  const cx = (caja.min[0] + caja.max[0]) / 2, cz = (caja.min[2] + caja.max[2]) / 2;
+  const hx = (caja.max[0] - caja.min[0]) / 2, hz = (caja.max[2] - caja.min[2]) / 2;
+  let dx = ojo[0] - cx, dz = ojo[2] - cz;
+  const n = Math.hypot(dx, dz);
+  if (n < 1e-6) { dx = 0; dz = 1; } else { dx /= n; dz /= n; }
+  const t = Math.min(Math.abs(dx) > 1e-9 ? hx / Math.abs(dx) : Infinity, Math.abs(dz) > 1e-9 ? hz / Math.abs(dz) : Infinity);
+  const d = t + SEPARACION_ANCLA;
+  return [cx + dx * d, caja.min[1] + (caja.max[1] - caja.min[1]) / 3, cz + dz * d];
+}
 
 /** Altura aparente en px de algo de `metros` a 25 m, en un ojo de `PX_OJO_ALTO` px y `CAMPO_VERTICAL_GRADOS`. */
 export function pxAparentes(metros: number, escala: number): number {
@@ -131,6 +153,29 @@ export function liberarPanelFicha(g: THREE.Group): void {
   g.removeFromParent();
 }
 
+/** Esfera con una «i»; flota sobre la pieza resaltada mientras hay ficha abierta. No se puede apuntar (no roba la mirada). */
+export function crearIconoInfo(): THREE.Group {
+  const g = new THREE.Group();
+  const r = DIAMETRO_ICONO / 2;
+  const esfera = new THREE.Mesh(
+    new THREE.SphereGeometry(r, 24, 16),
+    new THREE.MeshBasicMaterial({ color: COLOR_FONDO }),
+  );
+  const letra = new Text();
+  letra.font = fuenteSemi;
+  letra.text = 'i';
+  letra.fontSize = DIAMETRO_ICONO * 0.8;
+  letra.color = COLOR_TITULO;
+  letra.anchorX = 'center';
+  letra.anchorY = 'middle';
+  letra.position.set(0, 0, r + 0.02);
+  letra.sync();
+  for (const x of [g, esfera, letra]) x.raycast = () => undefined;
+  g.add(esfera, letra);
+  g.userData.dispose = () => { esfera.geometry.dispose(); (esfera.material as THREE.Material).dispose(); letra.dispose(); };
+  return g;
+}
+
 const cache = new Map<string, Promise<Ficha | null>>();
 
 /** Lee `/fichas/<id>.json` una sola vez. Un fallo de red o un JSON mal formado da null y no queda cacheado. */
@@ -148,8 +193,8 @@ export function cargarFicha(id: string): Promise<Ficha | null> {
 }
 
 /**
- * Mantiene el panel de la ficha abierta junto al módulo resaltado (mirando a la cámara, con tamaño aparente constante)
- * y anima la vista explotada. Se engancha al Reproductor con `alCambiarFicha` y `alCuadro`.
+ * Panel de la ficha abierta junto al módulo resaltado. En el visor queda anclado en el mundo (tamaño fijo, sin trasladarse,
+ * girando solo sobre el eje vertical); en escritorio sigue a la cámara con tamaño aparente constante. También anima la vista explotada. Se engancha al Reproductor con `alCambiarFicha` y `alCuadro`.
  */
 export class GestorFichas {
   /** Multiplicador del tamaño aparente del panel; público para probar legibilidad desde la consola. */
@@ -157,6 +202,8 @@ export class GestorFichas {
   private ficha: Ficha | null = null;
   private panel: THREE.Group | null = null;
   private token = 0;
+  private anclado = false;
+  private icono: THREE.Group | null = null;
   private readonly explotada: VistaExplotada;
   private readonly caja = new THREE.Box3();
   private readonly centro = new THREE.Vector3();
@@ -189,12 +236,20 @@ export class GestorFichas {
       this.panel = crearPanelFicha(f, this.modo);
       this.panel.visible = false; // hasta el primer cuadro con posición
       this.escena.add(this.panel);
+      if (this.modo === 'visor') {
+        this.icono = crearIconoInfo();
+        this.icono.visible = false;
+        this.escena.add(this.icono);
+      }
     });
   }
 
   private cerrarPanel(): void {
     if (this.panel) liberarPanelFicha(this.panel);
     this.panel = null;
+    this.anclado = false;
+    if (this.icono) liberarPanelFicha(this.icono);
+    this.icono = null;
   }
 
   cuadro(dt: number, e: EstadoSala | null): void {
@@ -205,7 +260,48 @@ export class GestorFichas {
     if (this.panel) {
       // En la maqueta AR (raíz escalada) el panel del docente taparía la vista: ahí no se muestra.
       if (this.viva.raiz.scale.x !== 1) this.panel.visible = false;
+      else if (this.modo === 'visor') this.colocarAnclado(obj);
       else this.colocar(obj);
+    }
+  }
+
+  /**
+   * Visor: el panel se ancla una sola vez (primer cuadro con alto y pieza) y de ahí no se traslada; solo gira sobre el eje
+   * vertical para mirar al alumno. Tamaño fijo en metros.
+   */
+  private colocarAnclado(obj: THREE.Object3D | undefined): void {
+    const panel = this.panel!;
+    if (!this.anclado) {
+      if ((panel.userData.alto as number) <= 0) { panel.visible = false; return; }
+      this.caja.makeEmpty();
+      if (obj) { obj.updateWorldMatrix(true, true); this.caja.setFromObject(obj); }
+      this.camara.updateMatrixWorld();
+      this.adelante.setFromMatrixPosition(this.camara.matrixWorld);
+      if (this.caja.isEmpty()) {
+        // Sin pieza (resaltado vacío): a 10 m al frente, a la altura de los ojos.
+        this.camara.getWorldDirection(this.derecha).setY(0).normalize();
+        panel.position.copy(this.adelante).addScaledVector(this.derecha, 10);
+      } else {
+        const [x, y, z] = posicionAnclada(
+          { min: this.caja.min.toArray() as Vec3, max: this.caja.max.toArray() as Vec3 },
+          this.adelante.toArray() as Vec3,
+        );
+        panel.position.set(x, y, z);
+        if (this.icono) {
+          this.icono.position.set((this.caja.min.x + this.caja.max.x) / 2, this.caja.max.y + ALTURA_ICONO + DIAMETRO_ICONO / 2, (this.caja.min.z + this.caja.max.z) / 2);
+        }
+      }
+      panel.scale.setScalar(TAMANO_VISOR_M / MEDIDAS.visor.ancho);
+      this.anclado = true;
+    }
+    this.camara.updateMatrixWorld();
+    this.adelante.setFromMatrixPosition(this.camara.matrixWorld);
+    const giro = Math.atan2(this.adelante.x - panel.position.x, this.adelante.z - panel.position.z);
+    panel.rotation.set(0, giro, 0);
+    panel.visible = true;
+    if (this.icono) {
+      this.icono.rotation.set(0, Math.atan2(this.adelante.x - this.icono.position.x, this.adelante.z - this.icono.position.z), 0);
+      this.icono.visible = !this.caja.isEmpty();
     }
   }
 

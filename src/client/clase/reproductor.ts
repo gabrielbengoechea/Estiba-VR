@@ -53,7 +53,6 @@ export class Reproductor {
   private sensor = new THREE.Quaternion();
 
   // Resaltado: caja y contorno propios (no se tocan los materiales compartidos de las piezas)
-  private cajaFondo: THREE.Mesh;
   private cajaBorde: THREE.LineSegments;
   private caja = new THREE.Box3();
   private tamano = new THREE.Vector3();
@@ -81,20 +80,14 @@ export class Reproductor {
   private rayoCasteo = new THREE.Raycaster();
 
   constructor(private o: OpcionesReproductor) {
-    this.cajaFondo = new THREE.Mesh(
-      new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshBasicMaterial({ color: AMARILLO, transparent: true, opacity: 0.16, depthWrite: false }),
-    );
     this.cajaBorde = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)),
-      new THREE.LineBasicMaterial({ color: AMARILLO, transparent: true, depthTest: false }),
+      new THREE.LineBasicMaterial({ color: AMARILLO, transparent: true, depthTest: true }),
     );
-    for (const x of [this.cajaFondo, this.cajaBorde]) {
-      x.visible = false;
-      x.renderOrder = 10;
-      x.raycast = () => undefined;
-      o.escena.add(x);
-    }
+    this.cajaBorde.visible = false;
+    this.cajaBorde.renderOrder = 10;
+    this.cajaBorde.raycast = () => undefined;
+    o.escena.add(this.cajaBorde);
     this.aro = new THREE.Mesh(
       new THREE.RingGeometry(0.7, 1, 48),
       new THREE.MeshBasicMaterial({ color: AMARILLO, transparent: true, side: THREE.DoubleSide, depthTest: false }),
@@ -258,16 +251,13 @@ export class Reproductor {
       this.caja.setFromObject(obj);
     }
     const visible = !this.caja.isEmpty();
-    this.cajaFondo.visible = this.cajaBorde.visible = visible;
+    this.cajaBorde.visible = visible;
     if (!visible) return;
     this.caja.getSize(this.tamano).addScalar(0.4 * this.o.viva.raiz.scale.x); // el relleno es de 0,4 m de la terminal, no del mundo
     this.caja.getCenter(this.centro);
-    for (const x of [this.cajaFondo, this.cajaBorde]) {
-      x.position.copy(this.centro);
-      x.scale.copy(this.tamano);
-    }
+    this.cajaBorde.position.copy(this.centro);
+    this.cajaBorde.scale.copy(this.tamano);
     const pulso = 0.5 + 0.5 * Math.sin(this.t * 4);
-    (this.cajaFondo.material as THREE.MeshBasicMaterial).opacity = 0.1 + 0.14 * pulso;
     (this.cajaBorde.material as THREE.LineBasicMaterial).opacity = 0.65 + 0.35 * pulso;
   }
 
