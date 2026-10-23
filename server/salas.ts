@@ -1,9 +1,9 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { join } from 'node:path';
 import type { RawData, WebSocket } from 'ws';
 import { leerMsgCliente, type MsgServidor } from '../src/shared/protocolo';
 import { Participantes } from './participantes';
+import { pinCorrecto } from './pin';
 import { aplicarComando, estadoInicial } from '../src/shared/sala';
 import type { Clase, Escena, EstadoSala, Rol } from '../src/shared/tipos';
 
@@ -20,11 +20,6 @@ const MAX_INTENTOS_PIN = 5;
 const VENTANA_PIN_MS = 60_000;
 /** La lista de participantes se manda a quienes dirigen la clase como máximo una vez en este tiempo. */
 export const VENTANA_PARTICIPANTES_MS = 2000;
-
-function pinCorrecto(dado: string | undefined, real: string): boolean {
-  const h = (t: string): Buffer => createHash('sha256').update(t).digest();
-  return dado !== undefined && timingSafeEqual(h(dado), h(real));
-}
 
 interface Sala {
   codigo: string;

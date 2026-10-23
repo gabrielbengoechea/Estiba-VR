@@ -14,6 +14,7 @@ import {
 } from './herramientas';
 import { PanelParametros } from './panelParametros';
 import { PanelPasos } from './pasos';
+import { instalarRegistroErrores } from '../errores';
 
 const CAPA_OVERLAY = 1;
 const UMBRAL_ARRASTRE_PX = 4;
@@ -518,6 +519,7 @@ export function iniciarEditor(): void {
   const app = document.getElementById('app');
   if (!app) return;
   const sala = params.get('sala') ?? '';
+  instalarRegistroErrores('editor', sala);
   const pin = params.get('pin') ?? '';
   if (!sala || !pin) {
     app.textContent = 'Falta el código de sala o el PIN en la dirección (editor.html?sala=XXXX&pin=YYYY).';

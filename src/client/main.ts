@@ -1,5 +1,6 @@
 import type { Rol } from '../shared/tipos';
 import { mostrarError } from './vistas/errorVista';
+import { instalarRegistroErrores } from './errores';
 
 const ROLES: Rol[] = ['docente', 'alumno', 'proyector', 'editor'];
 
@@ -7,6 +8,8 @@ const params = new URLSearchParams(location.search);
 const sala = params.get('sala') ?? '';
 const rolParam = params.get('rol') as Rol | null;
 const rol: Rol = rolParam && ROLES.includes(rolParam) ? rolParam : 'alumno';
+
+instalarRegistroErrores(rol, sala);
 
 const app = document.getElementById('app');
 // ?rol=editor desde la portada: se pasa al editor conservando sala y pin.

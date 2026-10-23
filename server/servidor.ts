@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { Salas, type OpcionesSalas } from './salas';
 import { ipCliente } from './ip';
 import { urlsDeLaRed } from './red';
+import { crearRegistroErrores, type OpcionesErrores } from './errores';
 import { iniciarLatido, LATIDO_MS } from './latido';
 
 const TIPOS: Record<string, string> = {
@@ -25,15 +26,17 @@ const TIPOS: Record<string, string> = {
 const ALIAS: Record<string, string> = { '/': '/index.html', '/editor': '/editor.html' };
 
 /** Servidor HTTP (o HTTPS si hay `tls`) que sirve `dirWeb`, con WebSocket en /ws. No empieza a escuchar: lo hace quien lo llama. */
-export function crearServidor(opts: OpcionesSalas & { dirWeb: string; latidoMs?: number; tls?: { key: string; cert: string } }): Server {
+export function crearServidor(opts: OpcionesSalas & { dirWeb: string; latidoMs?: number; errores?: OpcionesErrores; tls?: { key: string; cert: string } }): Server {
   const salas = new Salas(opts);
   const dirWeb = normalize(opts.dirWeb);
+  const registroErrores = crearRegistroErrores(opts.dirDatos, opts.pin, opts.errores);
 
   const atender: RequestListener = (req, res) => {
     const noEncontrado = (): void => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('No encontrado'); };
     let ruta: string;
     try {
       const url = new URL(req.url ?? '/', 'http://localhost');
+      if (registroErrores(req, res, url)) return;
       if (url.pathname === '/api/red' && opts.tls) {
         const puerto = (http.address() as { port?: number } | null)?.port ?? 0;
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
