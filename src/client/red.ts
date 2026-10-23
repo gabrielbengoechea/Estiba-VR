@@ -1,5 +1,5 @@
 import type { Comando } from '../shared/sala';
-import type { MsgCliente, MsgServidor } from '../shared/protocolo';
+import type { MsgCliente, MsgServidor, Participante } from '../shared/protocolo';
 import type { EstadoSala, Rol } from '../shared/tipos';
 import { Reloj } from './reloj';
 
@@ -59,6 +59,7 @@ export class ConexionSala {
   private ultimoMensaje = 0;
   private cbEstado: ((e: EstadoSala) => void)[] = [];
   private cbPose: ((p: PoseServidor) => void)[] = [];
+  private cbParticipantes: ((lista: Participante[]) => void)[] = [];
   private cbError: ((motivo: string) => void)[] = [];
   private cbConexion: ((conectado: boolean) => void)[] = [];
   private url: string;
@@ -80,11 +81,17 @@ export class ConexionSala {
 
   alEstado(fn: (e: EstadoSala) => void): void { this.cbEstado.push(fn); }
   alPose(fn: (p: PoseServidor) => void): void { this.cbPose.push(fn); }
+  alParticipantes(fn: (lista: Participante[]) => void): void { this.cbParticipantes.push(fn); }
   alError(fn: (motivo: string) => void): void { this.cbError.push(fn); }
   alCambioConexion(fn: (conectado: boolean) => void): void { this.cbConexion.push(fn); }
 
   enviar(c: Comando): void {
     this.mandar({ t: 'comando', c });
+  }
+
+  /** Estado del dispositivo (batería 0–1 o null si no se puede leer). */
+  enviarDispositivo(bateria: number | null, cargando: boolean | null): void {
+    this.mandar({ t: 'dispositivo', bateria, cargando });
   }
 
   /** Máximo 20 por segundo; las que sobran se descartan. */
@@ -190,6 +197,7 @@ export class ConexionSala {
     switch (m.t) {
       case 'estado': this.avisar(this.cbEstado, m.e); break;
       case 'pose': this.avisar(this.cbPose, m); break;
+      case 'participantes': this.avisar(this.cbParticipantes, m.lista); break;
       case 'pong': this.reloj.recibirPong(m.tc, m.ts); break;
       case 'error':
         if (ERRORES_FATALES.includes(m.motivo)) this.fatal = true;

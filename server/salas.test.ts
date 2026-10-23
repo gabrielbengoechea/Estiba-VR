@@ -390,4 +390,37 @@ describe('Salas', () => {
     await a.esperarCierre();
     silencio.mockRestore();
   });
+
+  describe('participantes', () => {
+    type Part = Extract<MsgServidor, { t: 'participantes' }>;
+    const esPart = (m: MsgServidor): m is Part => m.t === 'participantes';
+    const conAlumnos = (n: number) => (m: MsgServidor): m is Part =>
+      esPart(m) && m.lista.filter((x) => x.rol === 'alumno').length === n;
+
+    it('un docente recibe la lista con 2 alumnos tras unirse dos, y un alumno nunca la recibe', async () => {
+      const p = await levantar();
+      const d = await unir(p, 'docente', '1111', PIN);
+      const a1 = await unir(p, 'alumno');
+      const a2 = await unir(p, 'alumno');
+      const m = await d.esperar(conAlumnos(2), 4500);
+      expect(m.lista.filter((x) => x.rol === 'alumno').map((x) => x.nombre)).toEqual(['Alumno 1', 'Alumno 2']);
+      a1.enviar({ t: 'dispositivo', bateria: 0.1, cargando: false });
+      const m2 = await d.esperar((x): x is Part => esPart(x) && x.lista.some((y) => y.bateria === 0.1), 4500);
+      expect(m2.lista.find((y) => y.bateria === 0.1)).toMatchObject({ nombre: 'Alumno 1', cargando: false });
+      await a2.estado();
+      expect(a1.mensajes.some(esPart)).toBe(false);
+      expect(a2.mensajes.some(esPart)).toBe(false);
+    }, 12000);
+
+    it('un dispositivo malformado se ignora y la lista pierde al que se va', async () => {
+      const p = await levantar();
+      const d = await unir(p, 'docente', '1111', PIN);
+      const a = await unir(p, 'alumno');
+      await d.esperar(conAlumnos(1), 4500);
+      a.enviar({ t: 'dispositivo', bateria: 7, cargando: false });
+      a.ws.close();
+      await d.esperar(conAlumnos(0), 4500);
+      expect(d.mensajes.filter(esPart).some((m) => m.lista.some((x) => x.bateria === 7))).toBe(false);
+    }, 12000);
+  });
 });

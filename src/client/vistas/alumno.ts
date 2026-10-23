@@ -105,6 +105,24 @@ function mostrarMotivo(app: HTMLElement, motivo: string): void {
   app.append(capa);
 }
 
+const DISPOSITIVO_CADA_MS = 30_000;
+
+interface BateriaLike { level: number; charging: boolean }
+
+/** Manda el estado de batería al conectar (y al reconectar) y cada 30 s; sin API de batería manda nulls. */
+function informarDispositivo(conexion: ConexionSala): void {
+  const enviar = (): void => {
+    if (!conexion.conectado) return;
+    const nav = navigator as Navigator & { getBattery?: () => Promise<BateriaLike> };
+    if (!nav.getBattery) { conexion.enviarDispositivo(null, null); return; }
+    nav.getBattery()
+      .then((b) => conexion.enviarDispositivo(b.level, b.charging))
+      .catch(() => conexion.enviarDispositivo(null, null));
+  };
+  conexion.alCambioConexion((c) => { if (c) enviar(); });
+  setInterval(enviar, DISPOSITIVO_CADA_MS);
+}
+
 function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: EstadoSala) => void, alPose?: (p: PoseServidor) => void): ConexionSala | null {
   const sala = new URLSearchParams(location.search).get('sala') ?? '';
   try {
@@ -112,6 +130,7 @@ function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: 
     conexion.alEstado(alEstado);
     if (alPose) conexion.alPose(alPose);
     conexion.alCambioConexion((c) => indicadores.conexion(c));
+    informarDispositivo(conexion);
     conexion.alError((motivo) => {
       indicadores.conexion(false);
       mostrarMotivo(app, motivo);

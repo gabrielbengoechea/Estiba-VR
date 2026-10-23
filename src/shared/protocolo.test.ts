@@ -150,3 +150,21 @@ describe('leerMsgCliente', () => {
     }))).toBeNull();
   });
 });
+
+describe('leerMsgCliente: dispositivo', () => {
+  const ok = (m: unknown) => leerMsgCliente(JSON.stringify(m));
+  it('acepta batería 0–1 o null', () => {
+    expect(ok({ t: 'dispositivo', bateria: 0.5, cargando: true })).toEqual({ t: 'dispositivo', bateria: 0.5, cargando: true });
+    expect(ok({ t: 'dispositivo', bateria: null, cargando: null })).toEqual({ t: 'dispositivo', bateria: null, cargando: null });
+    expect(ok({ t: 'dispositivo', bateria: 0, cargando: false })).not.toBeNull();
+  });
+  it('rechaza fuera de rango, tipos erróneos o campos faltantes', () => {
+    expect(ok({ t: 'dispositivo', bateria: 1.5, cargando: true })).toBeNull();
+    expect(ok({ t: 'dispositivo', bateria: -0.1, cargando: true })).toBeNull();
+    expect(ok({ t: 'dispositivo', bateria: 'x', cargando: true })).toBeNull();
+    expect(ok({ t: 'dispositivo', bateria: 0.5, cargando: 'si' })).toBeNull();
+    expect(ok({ t: 'dispositivo', bateria: 0.5 })).toBeNull();
+    expect(ok({ t: 'dispositivo', cargando: true })).toBeNull();
+    expect(ok({ t: 'dispositivo' })).toBeNull();
+  });
+});

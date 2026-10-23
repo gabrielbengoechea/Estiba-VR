@@ -1,5 +1,6 @@
+import type { Participante } from '../../shared/protocolo';
 import { describe, expect, it } from 'vitest';
-import { baseDeAula, comandoTraer, mirenAcaTrasClic, esLinkLocal, factorSuavizado, guinadaHacia, idFichaAlternada, teclaAComando, urlAlumno } from './controlesDocente';
+import { baseDeAula, comandoTraer, mirenAcaTrasClic, esLinkLocal, factorSuavizado, guinadaHacia, idFichaAlternada, resumenSala, filaParticipante, teclaAComando, urlAlumno } from './controlesDocente';
 
 describe('teclaAComando', () => {
   it('las flechas pasan de paso', () => {
@@ -123,5 +124,31 @@ describe('baseDeAula', () => {
     expect(baseDeAula('https://192.168.0.10:8443', null, ['https://10.0.0.5:8443'])).toBeNull();
     expect(baseDeAula('https://localhost:8443', null, [])).toBeNull();
     expect(baseDeAula('https://localhost:8443', null, ['ftp://x'])).toBeNull();
+  });
+});
+
+const part = (o: Partial<Participante>): Participante => ({ id: '1', rol: 'alumno', nombre: 'Alumno 1', bateria: null, cargando: null, desde: 0, ...o });
+
+describe('resumenSala', () => {
+  it('cuenta alumnos y baterías bajas (< 20 % y sin cargar)', () => {
+    const lista = [
+      part({ bateria: 0.1, cargando: false }),
+      part({ bateria: 0.1, cargando: true }),
+      part({ bateria: 0.19, cargando: null }),
+      part({ bateria: 0.2 }),
+      part({ bateria: null }),
+      part({ rol: 'docente', nombre: 'docente', bateria: 0.01 }),
+    ];
+    expect(resumenSala(lista)).toBe('Sala: 5 alumnos · 2 con batería baja (< 20 %)');
+  });
+  it('sala vacía', () => {
+    expect(resumenSala([])).toBe('Sala: 0 alumnos · 0 con batería baja (< 20 %)');
+  });
+});
+
+describe('filaParticipante', () => {
+  it('muestra batería, cargando y minutos', () => {
+    expect(filaParticipante(part({ bateria: 0.456, cargando: true, desde: 0 }), 125_000)).toBe('Alumno 1 · batería 46 % · cargando · 2 min');
+    expect(filaParticipante(part({}), 0)).toBe('Alumno 1 · batería ? · 0 min');
   });
 });

@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { join } from 'node:path';
 import type { RawData, WebSocket } from 'ws';
 import { leerMsgCliente, type MsgServidor } from '../src/shared/protocolo';
+import { Participantes } from './participantes';
 import { aplicarComando, estadoInicial } from '../src/shared/sala';
 import type { Clase, Escena, EstadoSala, Rol } from '../src/shared/tipos';
 
@@ -17,6 +18,8 @@ const CODIGO_SALA = /^\d{4}$/;
 const ABIERTO = 1; // WebSocket.OPEN
 const MAX_INTENTOS_PIN = 5;
 const VENTANA_PIN_MS = 60_000;
+/** La lista de participantes se manda a quienes dirigen la clase como máximo una vez en este tiempo. */
+export const VENTANA_PARTICIPANTES_MS = 2000;
 
 function pinCorrecto(dado: string | undefined, real: string): boolean {
   const h = (t: string): Buffer => createHash('sha256').update(t).digest();
@@ -27,6 +30,10 @@ interface Sala {
   codigo: string;
   estado: EstadoSala;
   conexiones: Map<WebSocket, Rol>;
+  participantes: Participantes;
+  /** Último instante en que se mandó la lista (0 = nunca) y el aviso pendiente al final de la ventana. */
+  listaEnviadaEn: number;
+  listaTimer: ReturnType<typeof setTimeout> | null;
 }
 
 function enviar(ws: WebSocket, texto: string): void {
@@ -58,7 +65,12 @@ export class Salas {
     let rol: Rol = 'alumno';
 
     ws.on('error', () => { /* el cierre se encarga de limpiar */ });
-    ws.on('close', () => { sala?.conexiones.delete(ws); });
+    ws.on('close', () => {
+      if (!sala) return;
+      sala.conexiones.delete(ws);
+      sala.participantes.quitar(ws);
+      this.avisarParticipantes(sala);
+    });
     ws.on('message', (data: RawData, esBinario: boolean) => {
       try {
         const msg = esBinario ? null : leerMsgCliente(data.toString());
@@ -103,7 +115,9 @@ export class Salas {
     }
     if (sala.conexiones.size >= MAX_CONEXIONES_POR_SALA) { rechazar(ws, 'Sala llena'); return null; }
     sala.conexiones.set(ws, rol);
+    sala.participantes.unir(ws, rol);
     enviar(ws, this.msgEstado(sala));
+    this.avisarParticipantes(sala);
     return sala;
   }
 
@@ -131,8 +145,31 @@ export class Salas {
         this.difundir(sala, texto, ws);
         return;
       }
+      case 'dispositivo': {
+        sala.participantes.actualizar(ws, msg.bateria, msg.cargando);
+        this.avisarParticipantes(sala);
+        return;
+      }
       default: return; // `unirse` repetido: se ignora
     }
+  }
+
+  /** Manda la lista a docente/editor/proyector: enseguida si pasó la ventana; si no, la última al terminar la ventana. */
+  private avisarParticipantes(sala: Sala): void {
+    if (sala.listaTimer !== null) return; // ya hay un envío programado: llevará la lista más reciente
+    const falta = VENTANA_PARTICIPANTES_MS - (Date.now() - sala.listaEnviadaEn);
+    if (falta <= 0) { this.enviarParticipantes(sala); return; }
+    sala.listaTimer = setTimeout(() => {
+      sala.listaTimer = null;
+      this.enviarParticipantes(sala);
+    }, falta);
+    sala.listaTimer.unref?.();
+  }
+
+  private enviarParticipantes(sala: Sala): void {
+    sala.listaEnviadaEn = Date.now();
+    const texto = JSON.stringify({ t: 'participantes', lista: sala.participantes.lista() } satisfies MsgServidor);
+    for (const [ws, rol] of sala.conexiones) if (rol !== 'alumno') enviar(ws, texto);
   }
 
   private msgEstado(sala: Sala): string {
@@ -147,7 +184,7 @@ export class Salas {
   private obtener(codigo: string): Sala {
     let sala = this.salas.get(codigo);
     if (!sala) {
-      sala = { codigo, estado: this.crearEstado(codigo), conexiones: new Map() };
+      sala = { codigo, estado: this.crearEstado(codigo), conexiones: new Map(), participantes: new Participantes(), listaEnviadaEn: 0, listaTimer: null };
       this.salas.set(codigo, sala);
     }
     return sala;

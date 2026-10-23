@@ -8,12 +8,25 @@ export type MsgCliente =
   | { t: 'unirse'; sala: string; rol: Rol; pin?: string }
   | { t: 'comando'; c: Comando }
   | { t: 'pose'; cabeza: Cabeza; rayo: Rayo }
-  | { t: 'ping'; tc: number };
+  | { t: 'ping'; tc: number }
+  | { t: 'dispositivo'; bateria: number | null; cargando: boolean | null };
+
+export interface Participante {
+  id: string;
+  rol: Rol;
+  nombre: string;
+  /** 0–1, o null si el dispositivo no la informa. */
+  bateria: number | null;
+  cargando: boolean | null;
+  /** Instante (ms, reloj del servidor) en que entró a la sala. */
+  desde: number;
+}
 
 export type MsgServidor =
   | { t: 'estado'; e: EstadoSala; ts: number }
   | { t: 'pose'; cabeza: Cabeza; rayo: Rayo }
   | { t: 'pong'; tc: number; ts: number }
+  | { t: 'participantes'; lista: Participante[] }
   | { t: 'error'; motivo: string };
 
 const ROLES: readonly Rol[] = ['docente', 'alumno', 'proyector', 'editor'];
@@ -196,6 +209,11 @@ export function leerMsgCliente(texto: string): MsgCliente | null {
       return cabeza && rayo !== undefined ? { t: 'pose', cabeza, rayo } : null;
     }
     case 'ping': return esNum(x.tc) ? { t: 'ping', tc: x.tc } : null;
+    case 'dispositivo': {
+      const bateria = x.bateria === null ? null : esNum(x.bateria) && x.bateria >= 0 && x.bateria <= 1 ? x.bateria : undefined;
+      const cargando = x.cargando === null || typeof x.cargando === 'boolean' ? x.cargando : undefined;
+      return bateria !== undefined && cargando !== undefined ? { t: 'dispositivo', bateria, cargando } : null;
+    }
     default: return null;
   }
 }

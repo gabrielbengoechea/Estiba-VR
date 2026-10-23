@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import QRCode from 'qrcode';
+import type { Participante } from '../../shared/protocolo';
 import type { EstadoSala, Vec3 } from '../../shared/tipos';
 import { ConexionSala } from '../red';
 import { CERCA, LEJOS, configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
@@ -11,7 +12,7 @@ import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
 import { Reproductor } from '../clase/reproductor';
 import { iniciarXR } from './xr';
-import { baseDeAula, comandoTraer, esLinkLocal, factorSuavizado, idFichaAlternada, mirenAcaTrasClic, teclaAComando, urlAlumno } from './controlesDocente';
+import { baseDeAula, comandoTraer, esLinkLocal, filaParticipante, resumenSala, factorSuavizado, idFichaAlternada, mirenAcaTrasClic, teclaAComando, urlAlumno } from './controlesDocente';
 
 export type ModoEscritorio = 'proyector' | 'docente';
 
@@ -51,6 +52,8 @@ export class VistaEscritorio {
   private objetivoQuat = new THREE.Quaternion();
   private ultimaPoseMs = -Infinity;
   private teclaM = false;
+  private participantes: Participante[] = [];
+  private verLista = false;
   private cuadroXR: (() => void) | null = null;
   private reloj = new THREE.Clock();
   private rayo = new THREE.Raycaster();
@@ -85,6 +88,7 @@ export class VistaEscritorio {
 
     this.conexion = new ConexionSala(sala, modo, pin);
     this.conexion.alEstado((e) => this.recibirEstado(e));
+    this.conexion.alParticipantes((l) => { this.participantes = l; this.actualizarHud(); });
     this.conexion.alCambioConexion((c) => this.mostrarConexion(c ? '' : 'Sin conexión con la sala. Reintentando…'));
     this.conexion.alError((motivo) => this.mostrarConexion(motivo));
     this.mostrarConexion('Conectando con la sala…');
@@ -177,11 +181,15 @@ export class VistaEscritorio {
     const paso = e.clase.pasos[e.paso];
     const nombre = (id: string | null) => (id ? e.escena.modulos.find((m) => m.id === id)?.nombre ?? id : null);
     const titulo = paso ? `Paso ${e.paso + 1} de ${e.clase.pasos.length}: ${paso.titulo}` : e.clase.titulo;
-    const lineas = [titulo];
+    const lineas = [titulo, resumenSala(this.participantes)];
+    if (this.verLista) {
+      const ahora = Date.now();
+      lineas.push(...(this.participantes.length ? this.participantes.map((p) => filaParticipante(p, ahora)) : ['Nadie conectado']));
+    }
     if (this.modo === 'docente') {
       const res = nombre(e.resaltado);
       if (res) lineas.push(`Resaltado: ${res}`);
-      lineas.push('← → cambian de paso · clic resalta · M + clic: «miren acá» (otra vez o Esc: apagar) · T: traer · R: recentrar · Espacio: animación · F: ficha');
+      lineas.push('P: lista de la sala · ← → cambian de paso · clic resalta · M + clic: «miren acá» (otra vez o Esc: apagar) · T: traer · R: recentrar · Espacio: animación · F: ficha');
     }
     this.hud.replaceChildren(...lineas.map((l, i) => {
       const d = document.createElement('div');
@@ -241,6 +249,10 @@ export class VistaEscritorio {
     addEventListener('keydown', (ev) => {
       if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement) return;
       if (ev.key === 'm' || ev.key === 'M') { this.teclaM = true; return; }
+      if ((ev.key === 'p' || ev.key === 'P') && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+        if (!ev.repeat) { this.verLista = !this.verLista; this.actualizarHud(); }
+        return;
+      }
       if (ev.key === 'f' || ev.key === 'F') {
         // Abre la ficha del paso actual, o la cierra si ya está abierta.
         const e = this.estado;

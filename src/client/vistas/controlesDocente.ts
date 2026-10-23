@@ -1,4 +1,5 @@
 import type { Comando } from '../../shared/sala';
+import type { Participante } from '../../shared/protocolo';
 import type { Vec3 } from '../../shared/tipos';
 
 /** Altura de los ojos de un alumno parado, en metros. */
@@ -89,4 +90,23 @@ export function esLinkLocal(url: string): boolean {
 /** Id para el comando `ficha` al apretar F: cierra la ficha abierta, o abre la del paso (null si no tiene). */
 export function idFichaAlternada(abierta: string | null, delPaso: string | undefined): string | null {
   return abierta !== null ? null : delPaso ?? null;
+}
+
+/** Batería baja: informada, por debajo de 20 % y sin estar cargando. */
+export function bateriaBaja(p: Participante): boolean {
+  return p.bateria !== null && p.bateria < 0.2 && !p.cargando;
+}
+
+/** Línea del HUD: «Sala: N alumnos · K con batería baja (< 20 %)». */
+export function resumenSala(lista: readonly Participante[]): string {
+  const alumnos = lista.filter((p) => p.rol === 'alumno');
+  const bajas = alumnos.filter(bateriaBaja).length;
+  return `Sala: ${alumnos.length} ${alumnos.length === 1 ? 'alumno' : 'alumnos'} · ${bajas} con batería baja (< 20 %)`;
+}
+
+/** Fila de la lista desplegable: nombre, batería, «cargando» y minutos conectado. */
+export function filaParticipante(p: Participante, ahora: number): string {
+  const bat = p.bateria === null ? 'batería ?' : `batería ${Math.round(p.bateria * 100)} %`;
+  const min = Math.max(0, Math.floor((ahora - p.desde) / 60_000));
+  return [p.nombre, bat, ...(p.cargando ? ['cargando'] : []), `${min} min`].join(' · ');
 }
