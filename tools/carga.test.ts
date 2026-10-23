@@ -59,4 +59,36 @@ describe('prueba de carga', () => {
     expect(r.comandosSinRespuesta).toBeGreaterThan(1);
     expect(r.muestras).toBe(0);
   }, 10_000);
+
+  it('un estado tardío no contamina la muestra del comando siguiente', async () => {
+    const wss = new WebSocketServer({ port: 0, host: '127.0.0.1' });
+    await new Promise<void>((ok) => wss.once('listening', ok));
+    let version = 1;
+    let comandos = 0;
+    const clase = { pasos: [{}, {}] };
+    const mandar = (ws: import('ws').WebSocket) => ws.send(JSON.stringify({ t: 'estado', ts: 0, e: { version, paso: 0, clase } }));
+    wss.on('connection', (ws) => ws.on('message', (d) => {
+      const m = JSON.parse(d.toString());
+      if (m.t === 'unirse') { mandar(ws); return; }
+      if (m.t !== 'comando') return;
+      comandos++;
+      if (comandos === 1) {
+        // El primero se contesta tarde (pasado el plazo), solo al docente.
+        version++;
+        const v = version;
+        setTimeout(() => ws.send(JSON.stringify({ t: 'estado', ts: 0, e: { version: v, paso: 0, clase } })), 350);
+      } else if (comandos === 2) {
+        version++;
+        for (const c of wss.clients) mandar(c);
+      }
+    }));
+    const { port } = wss.address() as AddressInfo;
+    const r = await ejecutarCarga({
+      url: `ws://127.0.0.1:${port}/ws`, sala: '1234', pin: 'x', alumnos: 1, segundos: 1, pasosCada: 0.1, esperaComandoMs: 200,
+    });
+    for (const c of wss.clients) c.terminate();
+    await new Promise<void>((ok) => { wss.close(() => ok()); });
+    expect(r.comandosSinRespuesta).toBeGreaterThanOrEqual(1);
+    expect(r.muestras).toBeGreaterThanOrEqual(1);
+  }, 10_000);
 });

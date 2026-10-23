@@ -83,12 +83,22 @@ export async function ejecutarCarga(o: OpcionesCarga): Promise<Resultado> {
       });
     });
 
-  const cerrarTodo = () => { terminando = true; for (const w of todos) w.terminate(); };
+  const abandonadas = new Set<number>(); // versiones de comandos que vencieron
+  let temporizador: ReturnType<typeof setTimeout> | null = null;
+  const cerrarTodo = () => {
+    terminando = true;
+    if (temporizador) clearTimeout(temporizador);
+    for (const w of todos) w.terminate();
+  };
 
   // Docente: lleva la cuenta de la versión y del paso que ve.
-  const docente = { version: -1, paso: 0, pasos: 0, pendiente: false };
+  const docente = { version: -1, paso: 0, pasos: 0, esperando: null as number | null, desde: 0 };
   const ws0 = await conectar('docente', (e) => {
-    docente.version = e.version; docente.paso = e.paso; docente.pasos = e.pasos; docente.pendiente = false;
+    docente.version = e.version; docente.paso = e.paso; docente.pasos = e.pasos;
+    if (docente.esperando !== null && e.version === docente.esperando) {
+      docente.esperando = null;
+      if (temporizador) clearTimeout(temporizador);
+    }
   });
   if (!ws0) { cerrarTodo(); throw new Error(`El docente no pudo entrar a la sala: ${motivoRechazo || 'sin respuesta del servidor (¿URL incorrecta?)'}`); }
   if (docente.pasos < 2) { cerrarTodo(); throw new Error('La sala necesita al menos 2 pasos para la prueba'); }
@@ -97,7 +107,7 @@ export async function ejecutarCarga(o: OpcionesCarga): Promise<Resultado> {
   const alumnosWs = await Promise.all(Array.from({ length: o.alumnos }, (_, i) =>
     conectar('alumno', (e) => {
       vistos[i] = e.version;
-      const t0 = envio.get(e.version);
+      const t0 = abandonadas.has(e.version) ? undefined : envio.get(e.version);
       if (t0 !== undefined) latencias.push(performance.now() - t0);
     })));
   const conectados = alumnosWs.filter((w) => w !== null).length;
@@ -114,15 +124,22 @@ export async function ejecutarCarga(o: OpcionesCarga): Promise<Resultado> {
   let comandosSinRespuesta = 0;
   const espera = o.esperaComandoMs ?? 3000;
   const pasos = setInterval(() => {
-    if (ws0.readyState !== WebSocket.OPEN || docente.pendiente) return;
+    if (ws0.readyState !== WebSocket.OPEN || docente.esperando !== null) return;
     const t = docente.paso + 1 < docente.pasos ? 'siguiente' : 'anterior';
-    docente.pendiente = true;
-    envio.set(docente.version + 1, performance.now());
+    // Se parte de la última versión vista, salteando las de comandos vencidos.
+    let esperada = docente.version + 1;
+    while (abandonadas.has(esperada)) esperada++;
+    docente.esperando = esperada;
+    docente.desde = performance.now();
+    envio.set(esperada, docente.desde);
+    comandosEnviados++;
     ws0.send(JSON.stringify({ t: 'comando', c: { t } }));
-    const n = ++comandosEnviados;
-    setTimeout(() => {
-      // Si el estado no llegó, se cuenta y se sigue con el próximo comando.
-      if (docente.pendiente && n === comandosEnviados) { comandosSinRespuesta++; docente.pendiente = false; }
+    temporizador = setTimeout(() => {
+      if (docente.esperando !== esperada) return;
+      comandosSinRespuesta++;
+      abandonadas.add(esperada);
+      envio.delete(esperada);
+      docente.esperando = null;
     }, espera);
   }, Math.max(10, o.pasosCada * 1000));
 
@@ -131,6 +148,8 @@ export async function ejecutarCarga(o: OpcionesCarga): Promise<Resultado> {
   clearInterval(poses);
   await dormir(ESPERA_FINAL_MS);
 
+  // Un comando aún en vuelo cuenta como sin respuesta solo si ya venció su plazo.
+  if (docente.esperando !== null && performance.now() - docente.desde > espera) comandosSinRespuesta++;
   const orden = latencias.slice().sort((a, b) => a - b);
   const resultado: Resultado = {
     conectados,
