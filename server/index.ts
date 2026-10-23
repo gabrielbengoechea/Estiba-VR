@@ -5,7 +5,7 @@ import type { Clase, Escena } from '../src/shared/tipos';
 import { networkInterfaces } from 'node:os';
 import { crearServidor } from './servidor';
 import { obtenerCertificado } from './certificado';
-import { ipv4DeLaRed } from './red';
+import { ipv4Ordenadas } from './red';
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dirPublico = join(raiz, 'public');
@@ -44,6 +44,6 @@ http.listen(puerto, () => {
   console.log(`Estiba escuchando en el puerto ${puerto} (${https ? 'HTTPS' : 'HTTP'}, WebSocket en /ws)`);
   if (https) {
     console.log('Proyector (abrilo en esta computadora):');
-    for (const ip of ipv4DeLaRed(networkInterfaces())) console.log(`  https://${ip}:${puerto}/?sala=1234&rol=proyector`);
+    for (const ip of ipv4Ordenadas(networkInterfaces())) console.log(`  https://${ip}:${puerto}/?sala=1234&rol=proyector`);
   }
 });

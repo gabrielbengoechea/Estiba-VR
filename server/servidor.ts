@@ -34,7 +34,7 @@ export function crearServidor(opts: OpcionesSalas & { dirWeb: string; latidoMs?:
     let ruta: string;
     try {
       const url = new URL(req.url ?? '/', 'http://localhost');
-      if (url.pathname === '/api/red') {
+      if (url.pathname === '/api/red' && opts.tls) {
         const puerto = (http.address() as { port?: number } | null)?.port ?? 0;
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify({ urls: urlsDeLaRed(puerto, networkInterfaces()) }));

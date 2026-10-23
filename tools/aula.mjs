@@ -6,19 +6,23 @@ import { Writable } from 'node:stream';
 
 function pedirPin() {
   return new Promise((resolve) => {
+    const tty = Boolean(process.stdin.isTTY);
     let mudo = false;
-    // La salida se silencia mientras se escribe, para que el PIN no quede en pantalla.
+    // En una terminal real la salida se silencia al escribir, para que el PIN no quede en pantalla.
     const salida = new Writable({ write(chunk, _enc, cb) { if (!mudo) process.stdout.write(chunk); cb(); } });
-    const rl = createInterface({ input: process.stdin, output: salida, terminal: true });
-    rl.question('PIN de la clase (no se muestra): ', (r) => { rl.close(); process.stdout.write('\n'); resolve(r.trim()); });
-    mudo = true;
+    const rl = createInterface({ input: process.stdin, output: tty ? salida : undefined, terminal: tty });
+    let respuesta = '';
+    rl.once('line', (l) => { respuesta = l.trim(); rl.close(); });
+    rl.on('close', () => { if (tty) process.stdout.write('\n'); resolve(respuesta); });
+    process.stdout.write('PIN de la clase' + (tty ? ' (no se muestra): ' : ': '));
+    mudo = tty;
   });
 }
 
 let pin = process.env.ESTIBA_PIN;
 if (!pin) pin = await pedirPin();
 if (!pin) {
-  console.error('Hace falta un PIN para el modo aula.');
+  console.error('Falta el PIN de la clase.');
   process.exit(1);
 }
 

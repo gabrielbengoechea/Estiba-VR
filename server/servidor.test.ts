@@ -61,6 +61,11 @@ describe('servidor HTTP', () => {
     expect(r.status).toBe(404);
   });
 
+  it('/api/red no existe en modo HTTP (404)', async () => {
+    const puerto = await levantar();
+    expect((await fetch(`http://127.0.0.1:${puerto}/api/red`)).status).toBe(404);
+  });
+
   it('corta al cliente que no contesta los pings (y uno que sí contesta sigue)', async () => {
     const puerto = await levantar(60);
     const unir = (opts: ConstructorParameters<typeof WebSocket>[2]) => new Promise<WebSocket>((ok, mal) => {

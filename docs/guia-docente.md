@@ -13,7 +13,8 @@
 1. Router propio encendido; laptop y celulares conectados a él (no hace falta internet).
 2. En la laptop: `npm run aula` y escribir el PIN cuando lo pida.
 3. Abrir en la laptop la dirección `https://<ip>:8443/?sala=1234&rol=proyector` que imprime la consola. El QR ya apunta a la IP del router.
-4. **Cada celular acepta el certificado una sola vez** al abrir el QR. iPhone: «Mostrar detalles» → «visitar este sitio web». Después sigue como siempre.
+4. **Cada celular acepta el certificado una sola vez** al abrir el QR. iPhone: «Mostrar detalles» → «visitar este sitio web». Android: «Avanzado» → «Continuar». Después sigue como siempre.
+5. Si cambia la IP de la laptop, los celulares tienen que aceptar el certificado otra vez. Si Windows pregunta por el firewall (puerto 8443), «Permitir» en redes privadas.
 
 ## Controles del Quest
 | Acción | Cómo |

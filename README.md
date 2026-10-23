@@ -47,6 +47,8 @@ Una laptop y un router alcanzan: la laptop sirve la app por HTTPS en la red loca
 3. La consola imprime las direcciones `https://<ip>:8443/?sala=1234&rol=proyector`. Abrir esa en la laptop (o `https://localhost:8443/...`): el QR usa solo la IP de la red.
 4. Cada celular acepta el certificado una vez (es autofirmado, se genera en `data/`). iPhone: «Mostrar detalles» → «visitar este sitio web».
 
+Android: «Avanzado» → «Continuar». Si la IP de la laptop cambia (otra red o router), los celulares deben aceptar el certificado de nuevo. Windows puede pedir permiso de firewall para el puerto 8443: «Permitir» en redes privadas.
+
 Puerto por defecto 8443 (`PORT` lo cambia). El servidor informa sus URL en `GET /api/red`.
 
 ## Publicación en Render
