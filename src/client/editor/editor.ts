@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Escena, EstadoSala, Modulo, TipoModulo } from '../../shared/tipos';
 import type { OpEscena } from '../../shared/sala';
-import { mundoACelda } from '../../shared/grilla';
+import { mundoACelda, posicionModulo } from '../../shared/grilla';
 import { ConexionSala } from '../red';
 import { configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
@@ -239,7 +239,8 @@ export class Editor {
     this.lineaSel = null;
     if (m && this.estado) {
       const mpc = this.estado.escena.metrosPorCelda;
-      this.lineaSel = this.crearContorno(m.celda, catalogo[m.tipo].huella(m.params, mpc), m.rot, mpc, '#ffd24a');
+      const p = posicionModulo(m, mpc);
+      this.lineaSel = this.crearContorno([p.x / mpc, p.z / mpc], catalogo[m.tipo].huella(m.params, mpc), m.giro ?? m.rot, mpc, '#ffd24a');
     }
     this.actualizarAyuda();
   }
@@ -300,7 +301,8 @@ export class Editor {
     const m = e.metrosPorCelda;
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const mod of e.modulos) {
-      for (const [x, z] of rectanguloHuella(mod.celda, catalogo[mod.tipo].huella(mod.params, m), mod.rot)) {
+      const p = posicionModulo(mod, m);
+      for (const [x, z] of rectanguloHuella([p.x / m, p.z / m], catalogo[mod.tipo].huella(mod.params, m), mod.giro ?? mod.rot)) {
         x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z);
       }
     }
@@ -463,7 +465,7 @@ export class Editor {
         if (!g.movido && Math.hypot(ev.clientX - g.x0, ev.clientY - g.y0) < UMBRAL_ARRASTRE_PX) return;
         g.movido = true;
         const mod = this.moduloSeleccionado();
-        if (mod) this.mostrarFantasma(mod.tipo, celdaArrastrada(g.celdaMod, g.celdaPtr0, celda), mod.rot, mod.params);
+        if (mod) this.mostrarFantasma(mod.tipo, celdaArrastrada(g.celdaMod, g.celdaPtr0, celda), mod.giro ?? mod.rot, mod.params);
       } else if (this.herramienta) {
         this.mostrarFantasma(this.herramienta, celda, 0, paramsPorDefecto(this.herramienta));
       }

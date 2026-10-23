@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import type { Escena, EstadoSala, Modulo, Vec3 } from '../../shared/tipos';
 import type { EscenaViva } from '../escena/construirEscena';
 import { PALETA } from '../../shared/colores';
+import { posicionModulo } from '../../shared/grilla';
 import { desplazamientoY } from '../escena/catalogo';
 
 export type Enganche = 'spreader-sts' | 'tractor' | 'spreader-rtg';
@@ -173,13 +174,16 @@ function modulo(e: Escena, id: string): Modulo | undefined {
 /** Posición en el mundo del origen del módulo (o el origen si no existe). */
 function origen(e: Escena, id: string): Vec3 {
   const m = modulo(e, id);
-  return m ? [m.celda[0] * e.metrosPorCelda, 0, m.celda[1] * e.metrosPorCelda] : [0, 0, 0];
+  if (!m) return [0, 0, 0];
+  const p = posicionModulo(m, e.metrosPorCelda);
+  return [p.x, 0, p.z];
 }
 
 /** Punto local del módulo `id` (con su rotación) llevado al mundo. */
 function local(e: Escena, id: string, p: Vec3): Vec3 {
   const o = origen(e, id);
-  const a = THREE.MathUtils.degToRad(modulo(e, id)?.rot ?? 0);
+  const mod = modulo(e, id);
+  const a = mod ? posicionModulo(mod, e.metrosPorCelda).rad : 0;
   const c = Math.round(Math.cos(a) * 1e9) / 1e9;
   const s = Math.round(Math.sin(a) * 1e9) / 1e9;
   return [o[0] + c * p[0] + s * p[2], o[1] + p[1], o[2] - s * p[0] + c * p[2]];
@@ -402,7 +406,8 @@ export class Animador {
     const c = Math.cos(p.giro);
     const s = Math.sin(p.giro);
     obj.position.set(p.pos[0] - (c * desfase[0] + s * desfase[2]), desplazamientoY(modulo(e.escena, id)?.tipo ?? 'muelle'), p.pos[2] - (-s * desfase[0] + c * desfase[2]));
-    obj.rotation.y = p.giro + THREE.MathUtils.degToRad(modulo(e.escena, id)?.rot ?? 0);
+    const mod = modulo(e.escena, id);
+    obj.rotation.y = p.giro + (mod ? posicionModulo(mod, e.escena.metrosPorCelda).rad : 0);
     this.tocados.set(id, this.marca);
   }
 
@@ -413,15 +418,12 @@ export class Animador {
     if (!obj || !mod) return;
     const a = enganchePartes(this.tramos, 'tractor', t, this.a);
     if (a.k <= 0) return; // en su lugar (lo resuelve soltarSobrantes)
-    const m = e.escena.metrosPorCelda;
     const c = Math.cos(a.giro);
     const s = Math.sin(a.giro);
     const rx = a.pos[0] - c * TRACTOR_CONTENEDOR[0];
     const rz = a.pos[2] + s * TRACTOR_CONTENEDOR[0];
-    const bx = mod.celda[0] * m;
-    const bz = mod.celda[1] * m;
+    const { x: bx, z: bz, rad: base } = posicionModulo(mod, e.escena.metrosPorCelda);
     obj.position.set(bx + (rx - bx) * a.k, 0, bz + (rz - bz) * a.k);
-    const base = THREE.MathUtils.degToRad(mod.rot);
     obj.rotation.y = base + (a.giro - base) * a.k;
     this.tocados.set(id, this.marca);
   }
@@ -443,10 +445,9 @@ export class Animador {
       return true;
     }
     // Posición del contenedor en el espacio local de la grúa (rotación inversa de la grúa).
-    const m = e.escena.metrosPorCelda;
-    const ang = THREE.MathUtils.degToRad(mod.rot);
-    const dx = a.pos[0] - mod.celda[0] * m;
-    const dz = a.pos[2] - mod.celda[1] * m;
+    const { x: gx, z: gz, rad: ang } = posicionModulo(mod, e.escena.metrosPorCelda);
+    const dx = a.pos[0] - gx;
+    const dz = a.pos[2] - gz;
     const c = Math.cos(ang);
     const s = Math.sin(ang);
     const lx = c * dx - s * dz;
@@ -517,9 +518,9 @@ export class Animador {
     if (!e || !obj) return;
     const mod = modulo(e.escena, id);
     if (mod) {
-      const m = e.escena.metrosPorCelda;
-      obj.position.set(mod.celda[0] * m, desplazamientoY(mod.tipo), mod.celda[1] * m);
-      obj.rotation.set(0, THREE.MathUtils.degToRad(mod.rot), 0);
+      const { x, z, rad } = posicionModulo(mod, e.escena.metrosPorCelda);
+      obj.position.set(x, desplazamientoY(mod.tipo), z);
+      obj.rotation.set(0, rad, 0);
     }
     if (this.partes?.grua === obj && !this.explotando()) this.restaurarSts(this.partes);
   }

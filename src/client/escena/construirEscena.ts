@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Escena, Modulo } from '../../shared/tipos';
-import { celdaAMundo } from '../../shared/grilla';
+import { posicionModulo } from '../../shared/grilla';
 import { catalogo as catalogoReal, desplazamientoY, type EntradaCatalogo } from './catalogo';
 import type { TipoModulo } from '../../shared/tipos';
 
@@ -14,7 +14,7 @@ function claveParams(p?: Record<string, number>): string {
 
 function cambio(a: Modulo, b: Modulo): boolean {
   return a.tipo !== b.tipo || a.celda[0] !== b.celda[0] || a.celda[1] !== b.celda[1]
-    || a.rot !== b.rot || claveParams(a.params) !== claveParams(b.params);
+    || a.rot !== b.rot || a.giro !== b.giro || a.pos?.[0] !== b.pos?.[0] || a.pos?.[1] !== b.pos?.[1] || claveParams(a.params) !== claveParams(b.params);
 }
 
 /** Qué hay que crear, actualizar o borrar para pasar de `antes` a `despues`. */
@@ -100,9 +100,9 @@ export class EscenaViva {
   }
 
   private colocar(obj: THREE.Object3D, mod: Modulo, m: number): void {
-    const [x, y, z] = celdaAMundo(mod.celda, m);
-    obj.position.set(x, y + desplazamientoY(mod.tipo), z);
-    obj.rotation.set(0, THREE.MathUtils.degToRad(mod.rot), 0);
+    const { x, z, rad } = posicionModulo(mod, m);
+    obj.position.set(x, desplazamientoY(mod.tipo), z);
+    obj.rotation.set(0, rad, 0);
     obj.userData.moduloId = mod.id;
   }
 

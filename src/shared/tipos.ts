@@ -12,7 +12,15 @@ export interface Modulo {
   rot: 0 | 90 | 180 | 270;
   params?: Record<string, number>;
   nombre?: string;
+  /** Posición libre en metros [x, z]; si existe manda sobre `celda`. */
+  pos?: [number, number];
+  /** Giro libre en grados; si existe manda sobre `rot`. */
+  giro?: number;
 }
+
+export type TipoTrazado = 'via' | 'carril' | 'camino';
+/** Trazado dibujado: `puntos` son [x, z] en metros. */
+export interface Trazado { id: string; tipo: TipoTrazado; puntos: [number, number][]; nombre?: string }
 
 export interface Vista { pos: Vec3; mira: Vec3 }
 
@@ -20,6 +28,7 @@ export interface Escena {
   metrosPorCelda: number;
   modulos: Modulo[];
   vistas: Record<string, Vista>;
+  trazados?: Trazado[];
 }
 
 export interface Paso {
@@ -55,4 +64,6 @@ export interface EstadoSala {
   mirenAca: Vec3 | null;
   animacion: { id: string; inicio: number } | null;
   recentrar: number;
+  /** El docente deja que los alumnos caminen libremente. Apagado por defecto. */
+  recorridoLibre?: boolean;
 }

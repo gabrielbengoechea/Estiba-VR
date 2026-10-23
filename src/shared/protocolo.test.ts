@@ -168,3 +168,62 @@ describe('leerMsgCliente: dispositivo', () => {
     expect(ok({ t: 'dispositivo' })).toBeNull();
   });
 });
+
+describe('leerMsgCliente: trazados, posición libre y recorrido libre', () => {
+  const cmd = (c: unknown) => leerMsgCliente(JSON.stringify({ t: 'comando', c }));
+  const esc = (op: unknown) => cmd({ t: 'escena', op });
+  const tr = { id: 't1', tipo: 'via', puntos: [[0, 0], [10, 0]] };
+  const escenaVieja = { metrosPorCelda: 2, modulos: [modulo], vistas: { general: { pos: v(), mira: v() } } };
+
+  it('acepta mover con pos o celda, y girar con grados', () => {
+    expect(esc({ op: 'mover', id: 'm1', pos: [1.5, 2] })).toEqual({ t: 'comando', c: { t: 'escena', op: { op: 'mover', id: 'm1', pos: [1.5, 2] } } });
+    expect(esc({ op: 'mover', id: 'm1', celda: [1, 2] })).not.toBeNull();
+    expect(esc({ op: 'mover', id: 'm1' })).toBeNull();
+    expect(esc({ op: 'mover', id: 'm1', pos: [1, null] })).toBeNull();
+    expect(esc({ op: 'girar', id: 'm1', grados: 15 })).not.toBeNull();
+    expect(esc({ op: 'girar', id: 'm1' })).not.toBeNull();
+    expect(esc({ op: 'girar', id: 'm1', grados: 'x' })).toBeNull();
+  });
+
+  it('acepta módulos con pos y giro', () => {
+    expect(esc({ op: 'agregar', modulo: { ...modulo, pos: [1, 2], giro: 15 } })).not.toBeNull();
+    expect(esc({ op: 'agregar', modulo: { ...modulo, giro: 'a' } })).toBeNull();
+  });
+
+  it('acepta las operaciones de trazado y rechaza las malformadas', () => {
+    expect(esc({ op: 'agregarTrazado', trazado: tr })).not.toBeNull();
+    expect(esc({ op: 'agregarTrazado', trazado: { ...tr, tipo: 'ruta' } })).toBeNull();
+    expect(esc({ op: 'editarTrazado', id: 't1', puntos: [[0, 0], [1, 1]] })).not.toBeNull();
+    expect(esc({ op: 'borrarTrazado', id: 't1' })).not.toBeNull();
+    expect(esc({ op: 'borrarTrazado' })).toBeNull();
+  });
+
+  it('rechaza un trazado con 501 puntos o con NaN, y acepta 500', () => {
+    const muchos = (n: number) => Array.from({ length: n }, (_, i) => [i, 0]);
+    expect(esc({ op: 'agregarTrazado', trazado: { ...tr, puntos: muchos(500) } })).not.toBeNull();
+    expect(esc({ op: 'agregarTrazado', trazado: { ...tr, puntos: muchos(501) } })).toBeNull();
+    expect(esc({ op: 'editarTrazado', id: 't1', puntos: muchos(501) })).toBeNull();
+    // JSON no tiene NaN: se manda como null o como texto, y ambos se rechazan.
+    expect(esc({ op: 'agregarTrazado', trazado: { ...tr, puntos: [[0, 0], [NaN, 1]] } })).toBeNull();
+    expect(esc({ op: 'agregarTrazado', trazado: { ...tr, puntos: [[0, 0], ['1', 1]] } })).toBeNull();
+  });
+
+  it('restaurar valida la escena completa y acepta el formato viejo', () => {
+    expect(esc({ op: 'restaurar', escena: escenaVieja })).toEqual(
+      { t: 'comando', c: { t: 'escena', op: { op: 'restaurar', escena: escenaVieja } } },
+    );
+    expect(esc({ op: 'restaurar', escena: { ...escenaVieja, trazados: [tr] } })).not.toBeNull();
+    expect(esc({ op: 'restaurar', escena: { ...escenaVieja, modulos: [{ id: 'x' }] } })).toBeNull();
+    expect(esc({ op: 'restaurar', escena: { ...escenaVieja, trazados: [{ ...tr, puntos: [[0, NaN]] }] } })).toBeNull();
+    expect(esc({ op: 'restaurar', escena: 5 })).toBeNull();
+    const muchos = Array.from({ length: 201 }, (_, i) => ({ ...tr, id: `t${i}` }));
+    expect(esc({ op: 'restaurar', escena: { ...escenaVieja, trazados: muchos } })).toBeNull();
+    expect(esc({ op: 'restaurar', escena: { ...escenaVieja, trazados: muchos.slice(0, 200) } })).not.toBeNull();
+  });
+
+  it('recorridoLibre exige un booleano', () => {
+    expect(cmd({ t: 'recorridoLibre', activo: true })).toEqual({ t: 'comando', c: { t: 'recorridoLibre', activo: true } });
+    expect(cmd({ t: 'recorridoLibre', activo: 'si' })).toBeNull();
+    expect(cmd({ t: 'recorridoLibre' })).toBeNull();
+  });
+});

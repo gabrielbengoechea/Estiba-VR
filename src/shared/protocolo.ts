@@ -1,5 +1,5 @@
 import type { Comando, OpClase, OpEscena } from './sala';
-import type { EstadoSala, Modulo, Paso, Quat, Rol, TipoModulo, Vec3, Vista } from './tipos';
+import type { Escena, EstadoSala, Modulo, Paso, Quat, Rol, TipoModulo, TipoTrazado, Trazado, Vec3, Vista } from './tipos';
 
 type Rayo = { origen: Vec3; dir: Vec3 } | null;
 type Cabeza = { pos: Vec3; quat: Quat };
@@ -35,6 +35,9 @@ const TIPOS: readonly TipoModulo[] = [
   'grua-rtg', 'puerta', 'via', 'tren', 'deposito',
 ];
 const ROTS: readonly number[] = [0, 90, 180, 270];
+const TIPOS_TRAZADO: readonly TipoTrazado[] = ['via', 'carril', 'camino'];
+export const MAX_PUNTOS_TRAZADO = 500;
+export const MAX_TRAZADOS = 200;
 
 type Obj = Record<string, unknown>;
 
@@ -74,7 +77,67 @@ function leerModulo(x: unknown): Modulo | null {
     if (!esTexto(x.nombre)) return null;
     m.nombre = x.nombre;
   }
+  if (x.pos !== undefined) {
+    if (!esNums(x.pos, 2)) return null;
+    const pos = x.pos as number[];
+    m.pos = [pos[0], pos[1]];
+  }
+  if (x.giro !== undefined) {
+    if (!esNum(x.giro)) return null;
+    m.giro = x.giro;
+  }
   return m;
+}
+
+function leerPuntos(x: unknown): [number, number][] | null {
+  if (!Array.isArray(x) || x.length > MAX_PUNTOS_TRAZADO) return null;
+  const r: [number, number][] = [];
+  for (const p of x) {
+    if (!esNums(p, 2)) return null;
+    r.push([(p as number[])[0], (p as number[])[1]]);
+  }
+  return r;
+}
+
+function leerTrazado(x: unknown): Trazado | null {
+  if (!esObj(x) || !esTexto(x.id) || !TIPOS_TRAZADO.includes(x.tipo as TipoTrazado)) return null;
+  const puntos = leerPuntos(x.puntos);
+  if (!puntos) return null;
+  const t: Trazado = { id: x.id, tipo: x.tipo as TipoTrazado, puntos };
+  if (x.nombre !== undefined) {
+    if (!esTexto(x.nombre)) return null;
+    t.nombre = x.nombre;
+  }
+  return t;
+}
+
+/** Valida y sanea una escena completa (la usa `restaurar`; acepta el formato viejo, sin trazados). */
+export function leerEscena(x: unknown): Escena | null {
+  if (!esObj(x) || !esNum(x.metrosPorCelda) || !Array.isArray(x.modulos) || !esObj(x.vistas)) return null;
+  const modulos: Modulo[] = [];
+  for (const m of x.modulos) {
+    const mod = leerModulo(m);
+    if (!mod) return null;
+    modulos.push(mod);
+  }
+  const vistas: Record<string, Vista> = {};
+  for (const [k, v] of Object.entries(x.vistas)) {
+    const vista = leerVista(v);
+    if (!vista) return null;
+    vistas[k] = vista;
+  }
+  const escena: Escena = { metrosPorCelda: x.metrosPorCelda, modulos, vistas };
+  if (x.trazados !== undefined) {
+    if (!Array.isArray(x.trazados) || x.trazados.length > MAX_TRAZADOS) return null;
+    const trazados: Trazado[] = [];
+    for (const t of x.trazados) {
+      const tr = leerTrazado(t);
+      if (!tr) return null;
+      trazados.push(tr);
+    }
+    escena.trazados = trazados;
+  }
+  return escena;
 }
 
 /** Copia los campos de Paso que vengan en `x` (solo los conocidos). Con `completo` exige los obligatorios. */
@@ -117,11 +180,38 @@ function leerOpEscena(x: unknown): OpEscena | null {
       return modulo ? { op: 'agregar', modulo } : null;
     }
     case 'mover': {
-      if (!esTexto(x.id) || !esNums(x.celda, 2)) return null;
-      const celda = x.celda as number[];
-      return { op: 'mover', id: x.id, celda: [celda[0], celda[1]] };
+      if (!esTexto(x.id)) return null;
+      const r: OpEscena & { op: 'mover' } = { op: 'mover', id: x.id };
+      if (x.celda !== undefined) {
+        if (!esNums(x.celda, 2)) return null;
+        const celda = x.celda as number[];
+        r.celda = [celda[0], celda[1]];
+      }
+      if (x.pos !== undefined) {
+        if (!esNums(x.pos, 2)) return null;
+        const pos = x.pos as number[];
+        r.pos = [pos[0], pos[1]];
+      }
+      return r.celda || r.pos ? r : null;
     }
-    case 'girar': return esTexto(x.id) ? { op: 'girar', id: x.id } : null;
+    case 'girar': {
+      if (!esTexto(x.id)) return null;
+      if (x.grados === undefined) return { op: 'girar', id: x.id };
+      return esNum(x.grados) ? { op: 'girar', id: x.id, grados: x.grados } : null;
+    }
+    case 'agregarTrazado': {
+      const trazado = leerTrazado(x.trazado);
+      return trazado ? { op: 'agregarTrazado', trazado } : null;
+    }
+    case 'editarTrazado': {
+      const puntos = leerPuntos(x.puntos);
+      return esTexto(x.id) && puntos ? { op: 'editarTrazado', id: x.id, puntos } : null;
+    }
+    case 'borrarTrazado': return esTexto(x.id) ? { op: 'borrarTrazado', id: x.id } : null;
+    case 'restaurar': {
+      const escena = leerEscena(x.escena);
+      return escena ? { op: 'restaurar', escena } : null;
+    }
     case 'borrar': return esTexto(x.id) ? { op: 'borrar', id: x.id } : null;
     case 'params': {
       const params = leerParams(x.params);
@@ -157,6 +247,7 @@ function leerComando(x: unknown): Comando | null {
     case 'siguiente': return { t: 'siguiente' };
     case 'anterior': return { t: 'anterior' };
     case 'recentrar': return { t: 'recentrar' };
+    case 'recorridoLibre': return typeof x.activo === 'boolean' ? { t: 'recorridoLibre', activo: x.activo } : null;
     case 'irA': return esNum(x.paso) ? { t: 'irA', paso: x.paso } : null;
     case 'resaltar': return esTextoONull(x.id) ? { t: 'resaltar', id: x.id } : null;
     case 'ficha': return esTextoONull(x.id) ? { t: 'ficha', id: x.id } : null;

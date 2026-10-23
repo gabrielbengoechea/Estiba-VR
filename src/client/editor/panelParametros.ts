@@ -93,7 +93,9 @@ export class PanelParametros {
   }
 
   private detalle(m: Modulo): string {
-    return `Celda ${m.celda[0]}, ${m.celda[1]} · giro ${m.rot}°`;
+    const giro = Math.round((m.giro ?? m.rot) * 10) / 10;
+    if (m.pos) return `Posición ${Math.round(m.pos[0] * 10) / 10}, ${Math.round(m.pos[1] * 10) / 10} m · giro ${giro}°`;
+    return `Celda ${m.celda[0]}, ${m.celda[1]} · giro ${giro}°`;
   }
 
   private nota(texto: string): void {

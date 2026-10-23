@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Clase, Escena, EstadoSala, Modulo } from './tipos';
 import { aplicarComando, estadoInicial, type Comando } from './sala';
+import { leerMsgCliente } from './protocolo';
 
 function crearEscena(): Escena {
   return {
@@ -388,5 +389,130 @@ describe('pureza', () => {
     const s = aplicarComando(e, { t: 'clase', op: { op: 'editarPaso', indice: 1, cambios: { ficha: undefined } } }, 1);
     expect(s.clase.pasos[1].ficha).toBeUndefined();
     expect(s.version).toBe(e.version + 1);
+  });
+});
+
+describe('posición libre', () => {
+  const op = (o: Extract<Comando, { t: 'escena' }>['op']): Comando => ({ t: 'escena', op: o });
+  const mod = (e: EstadoSala, id: string) => e.escena.modulos.find((m) => m.id === id)!;
+
+  it('mover con pos guarda pos y mover con celda la suelta', () => {
+    const e = aplicar(crear(), op({ op: 'mover', id: 'muelle-1', pos: [3.5, -2] }));
+    expect(mod(e, 'muelle-1').pos).toEqual([3.5, -2]);
+    expect(aplicar(e, op({ op: 'mover', id: 'muelle-1', pos: [3.5, -2] }))).toBe(e);
+    const f = aplicar(e, op({ op: 'mover', id: 'muelle-1', celda: [4, 4] }));
+    expect(mod(f, 'muelle-1').pos).toBeUndefined();
+    expect(mod(f, 'muelle-1').celda).toEqual([4, 4]);
+  });
+
+  it('mover sin celda ni pos no hace nada', () => {
+    const e = crear();
+    expect(aplicar(e, op({ op: 'mover', id: 'muelle-1' }))).toBe(e);
+  });
+
+  it('girar con grados suma sobre rot y guarda giro', () => {
+    const e = aplicar(crear(), op({ op: 'girar', id: 'muelle-1', grados: 15 }));
+    expect(mod(e, 'muelle-1').giro).toBe(15);
+    expect(mod(e, 'muelle-1').rot).toBe(0);
+    const f = aplicar(e, op({ op: 'girar', id: 'muelle-1', grados: -30 }));
+    expect(mod(f, 'muelle-1').giro).toBe(345);
+  });
+
+  it('girar con grados que no cambian nada devuelve el mismo estado', () => {
+    const e = crear();
+    expect(aplicar(e, op({ op: 'girar', id: 'muelle-1', grados: 360 }))).toBe(e);
+  });
+
+  it('girar sin grados sigue sumando 90 a rot', () => {
+    const e = aplicar(crear(), op({ op: 'girar', id: 'grua-1' }));
+    expect(mod(e, 'grua-1').rot).toBe(0);
+    expect(mod(e, 'grua-1').giro).toBeUndefined();
+  });
+
+  it('girar sin grados con giro libre suma 90 al giro', () => {
+    const e = aplicar(crear(), op({ op: 'girar', id: 'muelle-1', grados: 15 }), op({ op: 'girar', id: 'muelle-1' }));
+    expect(mod(e, 'muelle-1').giro).toBe(105);
+  });
+});
+
+describe('trazados', () => {
+  const op = (o: Extract<Comando, { t: 'escena' }>['op']): Comando => ({ t: 'escena', op: o });
+  const t1 = { id: 't1', tipo: 'via' as const, puntos: [[0, 0], [10, 0]] as [number, number][] };
+
+  it('agregarTrazado lo agrega y sube la versión', () => {
+    const e = crear();
+    const f = aplicar(e, op({ op: 'agregarTrazado', trazado: t1 }));
+    expect(f.escena.trazados).toEqual([t1]);
+    expect(f.version).toBe(e.version + 1);
+  });
+
+  it('agregarTrazado con id repetido o con menos de 2 puntos no hace nada', () => {
+    const f = aplicar(crear(), op({ op: 'agregarTrazado', trazado: t1 }));
+    expect(aplicar(f, op({ op: 'agregarTrazado', trazado: { ...t1, puntos: [[5, 5], [6, 6]] } }))).toBe(f);
+    const e = crear();
+    expect(aplicar(e, op({ op: 'agregarTrazado', trazado: { ...t1, id: 't2', puntos: [[0, 0]] } }))).toBe(e);
+  });
+
+  it('editarTrazado cambia los puntos; con < 2 puntos o id desconocido no hace nada', () => {
+    const f = aplicar(crear(), op({ op: 'agregarTrazado', trazado: t1 }));
+    const g = aplicar(f, op({ op: 'editarTrazado', id: 't1', puntos: [[0, 0], [5, 5], [9, 9]] }));
+    expect(g.escena.trazados![0].puntos).toHaveLength(3);
+    expect(g.escena.trazados![0].tipo).toBe('via');
+    expect(aplicar(f, op({ op: 'editarTrazado', id: 't1', puntos: [[0, 0]] }))).toBe(f);
+    expect(aplicar(f, op({ op: 'editarTrazado', id: 'zz', puntos: [[0, 0], [1, 1]] }))).toBe(f);
+  });
+
+  it('borrarTrazado lo quita; si no existe no hace nada', () => {
+    const f = aplicar(crear(), op({ op: 'agregarTrazado', trazado: t1 }));
+    expect(aplicar(f, op({ op: 'borrarTrazado', id: 't1' })).escena.trazados).toEqual([]);
+    const e = crear();
+    expect(aplicar(e, op({ op: 'borrarTrazado', id: 't1' }))).toBe(e);
+  });
+});
+
+describe('restaurar', () => {
+  const op = (o: Extract<Comando, { t: 'escena' }>['op']): Comando => ({ t: 'escena', op: o });
+
+  it('reemplaza la escena completa', () => {
+    const e = crear();
+    const otra: Escena = { ...crearEscena(), modulos: [], trazados: [] };
+    const f = aplicar(e, op({ op: 'restaurar', escena: otra }));
+    expect(f.escena).toBe(otra);
+    expect(f.version).toBe(e.version + 1);
+  });
+
+  it('limpia el resaltado si el módulo ya no existe, y lo conserva si existe', () => {
+    const e = aplicar(crear(), { t: 'resaltar', id: 'grua-1' });
+    const sin: Escena = { ...crearEscena(), modulos: crearEscena().modulos.filter((m) => m.id !== 'grua-1') };
+    expect(aplicar(e, op({ op: 'restaurar', escena: sin })).resaltado).toBeNull();
+    expect(aplicar(e, op({ op: 'restaurar', escena: crearEscena() })).resaltado).toBe('grua-1');
+  });
+});
+
+describe('recorridoLibre', () => {
+  it('arranca apagado, cambia y es no-op si ya tiene ese valor', () => {
+    const e = crear();
+    expect(e.recorridoLibre).toBe(false);
+    expect(aplicar(e, { t: 'recorridoLibre', activo: false })).toBe(e);
+    const f = aplicar(e, { t: 'recorridoLibre', activo: true });
+    expect(f.recorridoLibre).toBe(true);
+    expect(f.version).toBe(e.version + 1);
+    expect(aplicar(f, { t: 'recorridoLibre', activo: true })).toBe(f);
+  });
+});
+
+describe('formato viejo', () => {
+  it('una escena sin trazados ni pos/giro pasa por estadoInicial, los comandos y el protocolo sin cambios', () => {
+    const vieja = JSON.parse(JSON.stringify(crearEscena())) as Escena;
+    const e = estadoInicial(vieja, crearClase());
+    expect(e.escena).toBe(vieja);
+    expect('trazados' in e.escena).toBe(false);
+    expect(e.escena.modulos.every((m) => !('pos' in m) && !('giro' in m))).toBe(true);
+    const f = aplicar(e, { t: 'siguiente' }, { t: 'escena', op: { op: 'mover', id: 'muelle-1', celda: [5, 5] } },
+      { t: 'escena', op: { op: 'girar', id: 'muelle-1' } });
+    expect(f.escena.modulos[0]).toEqual({ id: 'muelle-1', tipo: 'muelle', celda: [5, 5], rot: 90 });
+    expect('trazados' in f.escena).toBe(false);
+    const msg = leerMsgCliente(JSON.stringify({ t: 'comando', c: { t: 'escena', op: { op: 'restaurar', escena: vieja } } }));
+    expect(msg).toEqual({ t: 'comando', c: { t: 'escena', op: { op: 'restaurar', escena: vieja } } });
   });
 });
