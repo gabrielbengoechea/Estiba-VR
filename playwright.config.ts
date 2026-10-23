@@ -1,16 +1,16 @@
 import { defineConfig } from '@playwright/test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { resolve } from 'node:path';
 
 // Puertos propios para no chocar con un servidor de desarrollo abierto; datos en una carpeta temporal.
 const PUERTO_SERVIDOR = 8799;
 const PUERTO_WEB = 5199;
-const datos = mkdtempSync(join(tmpdir(), 'estiba-e2e-'));
+export const DATOS_E2E = resolve('test-results', 'e2e-datos');
 
 export default defineConfig({
   testDir: 'e2e',
   timeout: 90_000,
+  globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   reporter: 'list',
   use: {
     baseURL: `http://localhost:${PUERTO_WEB}`,
@@ -22,7 +22,7 @@ export default defineConfig({
       command: 'npm run dev:server',
       port: PUERTO_SERVIDOR,
       reuseExistingServer: false,
-      env: { PORT: String(PUERTO_SERVIDOR), ESTIBA_DATOS: datos },
+      env: { PORT: String(PUERTO_SERVIDOR), ESTIBA_DATOS: DATOS_E2E },
     },
     {
       command: `npm run dev:web:http -- --port ${PUERTO_WEB} --strictPort`,

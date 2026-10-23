@@ -1,3 +1,10 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
+import viteConfig from './vite.config';
 
-export default defineConfig({ test: { exclude: ['e2e/**', 'node_modules/**', 'dist/**'] } });
+// Conserva los plugins y opciones de vite.config.ts y deja afuera las pruebas de punta a punta (Playwright).
+export default defineConfig((env) =>
+  mergeConfig(
+    typeof viteConfig === 'function' ? viteConfig(env) : viteConfig,
+    defineConfig({ test: { exclude: [...configDefaults.exclude, 'e2e/**'] } }),
+  ),
+);

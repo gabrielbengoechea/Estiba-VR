@@ -1,16 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
-/** Errores de consola que no son fallas de la app (ruido de WebGL por software en Chromium headless). */
-// (también se ignora el 404 de /favicon.ico)
-const BENIGNOS = [/GPU stall due to ReadPixels/i, /GL Driver Message/i, /WebGL.*(swiftshader|fallback)/i];
-
 function vigilar(page: Page, nombre: string, errores: string[]): void {
   page.on('pageerror', (e) => errores.push(`${nombre} pageerror: ${e.message}`));
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
     const t = m.text();
-    if (BENIGNOS.some((r) => r.test(t))) return;
-    if (/favicon\.ico$/.test(m.location().url)) return; // el navegador pide el ícono; la app no tiene
+    // El navegador pide el ícono y la app no tiene: es el único 404 esperado.
+    if (/favicon\.ico$/.test(m.location().url)) return;
     errores.push(`${nombre} console: ${t}`);
   });
 }
@@ -62,7 +58,7 @@ test('una clase completa: docente, proyector y alumno ven el mismo paso', async 
   await expect.poll(() => leerPaso(alumno), { timeout: 15_000 }).not.toBeNull();
   await expect.poll(() => leerPaso(proyector), { timeout: 15_000 }).not.toBeNull();
 
-  await docente.locator('body').click({ position: { x: 5, y: 5 } });
+  await docente.bringToFront();
   const inicial = (await leerPaso(docente)) as number;
   await todosEn(inicial);
   for (let paso = inicial + 1; paso < total; paso++) {
