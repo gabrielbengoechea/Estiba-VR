@@ -90,10 +90,13 @@ describe('GestorFichas en el visor', () => {
     const escena = new THREE.Scene();
     const modulo = new THREE.Mesh(new THREE.BoxGeometry(10, 30, 10));
     modulo.position.set(5, 15, 5);
-    escena.add(modulo);
+    const otro = new THREE.Mesh(new THREE.BoxGeometry(10, 30, 10));
+    otro.position.set(105, 15, 5);
+    escena.add(modulo, otro);
     const raiz = new THREE.Group();
     const cam = new THREE.PerspectiveCamera();
-    const g = new GestorFichas(escena, { objeto: () => modulo, raiz } as never, cam, 'visor');
+    const objeto = (id: string) => (id === 'sin' ? undefined : id === 'b' ? otro : modulo);
+    const g = new GestorFichas(escena, { objeto, raiz } as never, cam, 'visor');
     const panel = new THREE.Group();
     panel.userData.alto = 3;
     (g as unknown as { panel: THREE.Group }).panel = panel;
@@ -113,8 +116,7 @@ describe('GestorFichas en el visor', () => {
     expect(panel.position.equals(p1)).toBe(false);
     const p2 = panel.position.clone();
     g.cuadro(0.016, estado('b'));
-    g.cuadro(0.016, estado('b'));
-    expect(panel.position.distanceTo(p2)).toBeLessThan(1e-9); // mismo ojo y misma caja: mismo punto
+    expect(panel.position.distanceTo(p2)).toBeGreaterThan(1); // otra pieza: otro punto
   });
   it('si al principio no hay pieza, ancla cuando aparece', () => {
     const { g, cam, panel, estado } = montar();
@@ -134,5 +136,27 @@ describe('GestorFichas en el visor', () => {
     raiz.scale.setScalar(0.1);
     g.cuadro(0.016, estado('a'));
     expect(icono.visible).toBe(false);
+  });
+  it('sin pieza se ancla una sola vez (no sigue la mirada) y se reancla cuando aparece', () => {
+    const { g, cam, panel, estado } = montar();
+    cam.position.set(5, 1.7, 60);
+    g.cuadro(0.016, estado('sin'));
+    const p = panel.position.clone();
+    cam.rotation.y = 1.2;
+    g.cuadro(0.016, estado('sin'));
+    expect(panel.position.distanceTo(p)).toBeLessThan(1e-9);
+    g.cuadro(0.016, estado('a'));
+    expect(panel.position.distanceTo(p)).toBeGreaterThan(1);
+  });
+  it('un ícono que llega tarde se coloca sobre la pieza, sin el margen de la vista explotada', () => {
+    const { g, cam, estado } = montar();
+    (g as unknown as { ficha: unknown }).ficha = { explotada: 'grua-sts' };
+    cam.position.set(5, 1.7, 60);
+    g.cuadro(0.016, estado('a'));
+    const icono = new THREE.Group();
+    (g as unknown as { icono: THREE.Group }).icono = icono;
+    g.cuadro(0.016, estado('a'));
+    expect(icono.position.x).toBeCloseTo(5);
+    expect(icono.position.y).toBeCloseTo(30 + 2 + 0.75);
   });
 });

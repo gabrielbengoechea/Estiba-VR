@@ -231,6 +231,7 @@ export class GestorFichas {
   private anclaId: string | null | undefined = undefined;
   private anclaSinPieza = false;
   private readonly ojoAncla = new THREE.Vector3();
+  private readonly cajaIcono = new THREE.Box3();
   private icono: THREE.Group | null = null;
   private readonly explotada: VistaExplotada;
   private readonly caja = new THREE.Box3();
@@ -303,6 +304,7 @@ export class GestorFichas {
     if ((panel.userData.alto as number) <= 0) { panel.visible = false; if (this.icono) this.icono.visible = false; return; }
     this.caja.makeEmpty();
     if (obj) { obj.updateWorldMatrix(true, true); this.caja.setFromObject(obj); }
+    this.cajaIcono.copy(this.caja);
     if (!this.caja.isEmpty() && this.ficha?.explotada) this.caja.expandByScalar(MARGEN_EXPLOTADA);
     this.camara.updateMatrixWorld();
     this.adelante.setFromMatrixPosition(this.camara.matrixWorld);
@@ -323,17 +325,19 @@ export class GestorFichas {
           this.adelante.toArray() as Vec3,
         );
         panel.position.set(x, y, z);
-        if (this.icono) {
-          this.icono.position.set((this.caja.min.x + this.caja.max.x) / 2, this.caja.max.y + ALTURA_ICONO + DIAMETRO_ICONO / 2, (this.caja.min.z + this.caja.max.z) / 2);
-        }
         this.anclaSinPieza = false;
       }
       panel.scale.setScalar(TAMANO_VISOR_M / MEDIDAS.visor.ancho);
-      this.anclado = !this.anclaSinPieza;
+      this.anclado = true; // con o sin pieza: queda quieto; sin pieza se reancla cuando aparezca (`anclaSinPieza`)
     }
     const giro = Math.atan2(this.adelante.x - panel.position.x, this.adelante.z - panel.position.z);
     panel.rotation.set(0, giro, 0);
     panel.visible = true;
+    if (this.icono && hayPieza) {
+      // Cada cuadro desde la caja de la pieza (sin el margen de la vista explotada): sirve aunque el ícono llegue tarde.
+      const c = this.cajaIcono;
+      this.icono.position.set((c.min.x + c.max.x) / 2, c.max.y + ALTURA_ICONO + DIAMETRO_ICONO / 2, (c.min.z + c.max.z) / 2);
+    }
     if (this.icono) {
       this.icono.rotation.set(0, Math.atan2(this.adelante.x - this.icono.position.x, this.adelante.z - this.icono.position.z), 0);
       this.icono.visible = hayPieza;
