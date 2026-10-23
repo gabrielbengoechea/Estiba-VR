@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import QRCode from 'qrcode';
 import type { EstadoSala, Vec3 } from '../../shared/tipos';
 import { ConexionSala } from '../red';
-import { configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
+import { CERCA, LEJOS, configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
 import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
@@ -34,7 +34,7 @@ function crearPanel(css: string): HTMLDivElement {
 export class VistaEscritorio {
   readonly renderer: THREE.WebGLRenderer;
   readonly escena = new THREE.Scene();
-  readonly camara = new THREE.PerspectiveCamera(55, 1, 0.3, 3000);
+  readonly camara = new THREE.PerspectiveCamera(55, 1, CERCA, LEJOS);
   readonly viva = new EscenaViva();
   readonly conexion: ConexionSala;
   /** Resaltado, aro y fichas; sin fundidos ni movimientos de cámara. */

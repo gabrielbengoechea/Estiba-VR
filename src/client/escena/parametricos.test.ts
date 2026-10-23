@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { contarContenedores, bloquePatio } from './parametricos';
+import { contarContenedores, bloquePatio, muelle } from './parametricos';
 import * as THREE from 'three';
 
 describe('contarContenedores', () => {
@@ -40,4 +40,30 @@ describe('huella y geometría coinciden', () => {
       }
     });
   }
+});
+
+describe('sin superficies coplanares', () => {
+  it('la defensa del cantil no comparte el plano superior de la losa', () => {
+    const topes: { zMin: number; zMax: number; y: number }[] = [];
+    muelle().traverse((o) => {
+      if (o instanceof THREE.Mesh && o.scale.y >= 1.4) {
+        topes.push({ zMin: o.position.z - o.scale.z / 2, zMax: o.position.z + o.scale.z / 2, y: o.position.y + o.scale.y / 2 });
+      }
+    });
+    expect(topes.length).toBe(2);
+    const [a, b] = topes;
+    const solapan = Math.min(a.zMax, b.zMax) - Math.max(a.zMin, b.zMin) > 1e-6;
+    const mismoPlano = Math.abs(a.y - b.y) < 0.02;
+    expect(solapan && mismoPlano).toBe(false);
+  });
+  it('las líneas pintadas usan polygonOffset', () => {
+    const g = bloquePatio({ filas: 2, bahias: 2 });
+    const lineas = g.children.filter((o): o is THREE.InstancedMesh => o instanceof THREE.InstancedMesh && !o.userData.contenedores);
+    expect(lineas.length).toBe(2);
+    for (const l of lineas) {
+      const m = l.material as THREE.MeshStandardMaterial;
+      expect(m.polygonOffset).toBe(true);
+      expect(m.polygonOffsetFactor).toBe(-1);
+    }
+  });
 });

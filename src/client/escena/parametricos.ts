@@ -76,6 +76,14 @@ function mat(hex: string, rugosidad = 0.8): THREE.MeshStandardMaterial {
   return m;
 }
 
+/** Material de línea pintada: se dibuja por encima del pavimento sin pelear por la profundidad. */
+function matPintura(hex: string): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color: hex, roughness: 0.8, metalness: 0.05, flatShading: true,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+  });
+}
+
 const cajaUnidad = new THREE.BoxGeometry(1, 1, 1);
 type Caja = [number, number, number, number, number, number];
 
@@ -89,8 +97,8 @@ function caja(g: THREE.Group, hex: string, x0: number, y0: number, z0: number, d
 }
 
 /** Cajas del mismo color como un solo InstancedMesh. */
-function instancias(hex: string, cajas: Caja[], marca?: string): THREE.InstancedMesh {
-  const im = new THREE.InstancedMesh(cajaUnidad, mat(hex), cajas.length);
+function instancias(hex: string, cajas: Caja[], marca?: string, material: THREE.Material = mat(hex)): THREE.InstancedMesh {
+  const im = new THREE.InstancedMesh(cajaUnidad, material, cajas.length);
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   cajas.forEach(([x0, y0, z0, dx, dy, dz], i) => {
@@ -120,12 +128,12 @@ export function bloquePatio(params: ParamsPatio = {}): THREE.Group {
     const x = b * PASO_BAHIA - (PASO_BAHIA - LARGO_20) / 2;
     blanco.push([x - 0.07, 0, -(filas * PASO_FILA - 0.18), 0.14, 0.03, filas * PASO_FILA]);
   }
-  g.add(instancias('#F2F2EE', blanco));
+  g.add(instancias('#F2F2EE', blanco, undefined, matPintura('#F2F2EE')));
   const largoLinea = bahias * PASO_BAHIA + 1;
   g.add(instancias('#E2B21A', [
     [-1, 0, 6.0, largoLinea, 0.03, 0.2],
     [-1, 0, 0.9, largoLinea, 0.03, 0.2],
-  ]));
+  ], undefined, matPintura('#E2B21A')));
 
   const porColor: Caja[][] = PALETA.contenedores.map(() => []);
   for (const p of disponerContenedores(params)) {
@@ -143,7 +151,7 @@ export function muelle(params: { largo?: number } = {}, m = M_POR_DEFECTO): THRE
   const fondo = MUELLE_FONDO;
   const g = new THREE.Group();
   g.name = 'muelle';
-  caja(g, '#6B7178', 0, -1.5, -fondo, largo, 1.5, fondo);
+  caja(g, '#6B7178', 0, -1.5, -fondo, largo, 1.5, fondo - 0.4); // la losa termina donde empieza la defensa: sin plano compartido
   caja(g, PALETA.amarillo, 0, 0, -0.6, largo, 0.04, 0.3); // línea de borde
   caja(g, PALETA.oscuro, 0, -1.5, -0.4, largo, 1.5, 0.4); // defensa de cantil
   const bolardos: Caja[] = [];

@@ -2,6 +2,11 @@ import * as THREE from 'three';
 
 /** Nivel del agua respecto del tope del muelle (y = 0). */
 export const NIVEL_AGUA = -1.4;
+/** Planos de cámara (m): cerca/lejos lo más ajustados posible para conservar precisión de profundidad. */
+export const CERCA = 0.5;
+export const LEJOS = 1500;
+/** Altura de la tapa del pavimento, bajo el nivel 0 de las losas y las líneas. */
+export const TOPE_SUELO = -0.1;
 
 /** Sombras suaves y tono de cine, como en spike/index.html. Lo llama cada vista al crear su renderer. */
 export function configurarRenderer(renderer: THREE.WebGLRenderer): void {
@@ -44,7 +49,7 @@ export function crearAmbiente(escena: THREE.Scene, opciones: { mapaSombra?: numb
   const lado = new THREE.MeshStandardMaterial({ color: '#7d848b', roughness: 0.95 });
   const tapa = new THREE.MeshStandardMaterial({ map: texturaCuadricula(1600 / 20, 1180 / 20), color: '#ffffff', roughness: 0.95 });
   const suelo = new THREE.Mesh(new THREE.BoxGeometry(1600, 1.5, 1180), [lado, lado, tapa, lado, lado, lado]);
-  suelo.position.set(200, -0.05 - 0.75, -20 - 590);
+  suelo.position.set(200, TOPE_SUELO - 0.75, -20 - 590);
   suelo.receiveShadow = true;
   suelo.name = 'suelo';
   escena.add(suelo);

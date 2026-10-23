@@ -1,7 +1,7 @@
 // Vista del alumno: entrada + vista doble sobre la escena de la sala.
 import * as THREE from 'three';
 import type { EstadoSala } from '../../shared/tipos';
-import { configurarRenderer, crearAmbiente, habilitarSombras } from '../escena/ambiente';
+import { CERCA, LEJOS, configurarRenderer, crearAmbiente, habilitarSombras } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
 import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
@@ -153,7 +153,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   renderer.shadowMap.autoUpdate = false;
   const viva = new EscenaViva();
   escena.add(viva.raiz);
-  const cabeza = new THREE.PerspectiveCamera(80, ancho() / 2 / alto(), 0.1, 3000);
+  const cabeza = new THREE.PerspectiveCamera(80, ancho() / 2 / alto(), CERCA, LEJOS);
   let escenaJson = '';
   const vista = new VistaEstereo(renderer);
 
