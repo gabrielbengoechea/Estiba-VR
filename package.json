@@ -12,6 +12,7 @@
     "aula": "npm run build && node tools/aula.mjs",
     "start": "tsx server/index.ts",
     "test": "vitest run",
+    "carga": "tsx tools/carga.ts",
     "modelos": "node tools/blender/correr.mjs"
   },
   "dependencies": {

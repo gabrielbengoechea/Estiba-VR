@@ -12,5 +12,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src", "server", "vite.config.ts"]
+  "include": ["src", "server", "tools/carga.ts", "tools/carga.test.ts", "vite.config.ts"]
 }
