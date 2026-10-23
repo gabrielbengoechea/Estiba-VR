@@ -38,19 +38,44 @@ const SEPARACION_ANCLA = 2;
 const DIAMETRO_ICONO = 1.5;
 const ALTURA_ICONO = 2;
 
+const PANEL_MIN_M = 6;
+const PANEL_MAX_M = 20;
+/** Cuánto se agranda la caja de una grúa en vista explotada para que las piezas no crucen el panel. */
+const MARGEN_EXPLOTADA = 15;
+/** Si el ojo se aleja más de esto (m) de donde estaba al anclar, el panel se vuelve a anclar. */
+const REANCLAR_M = 5;
+
+type Caja3 = { min: Vec3; max: Vec3 };
+const dentro = (c: Caja3, p: Vec3): boolean => p.every((v, i) => v > c.min[i] && v < c.max[i]);
+
 /**
- * Punto fijo del panel en el visor: al costado de la caja de la pieza del lado del observador, a 1/3 de su altura
- * y `SEPARACION_ANCLA` m afuera de la caja. Se calcula una sola vez al abrir la ficha.
+ * Punto fijo del panel en el visor: sobre el segmento del ojo al punto más cercano de la caja de la pieza, a
+ * `clamp(distancia - 2, 6, 20)` m del ojo (6 m de panel se leen bien a unos 25 m, así que se lo lleva lejos si se puede),
+ * a la altura de los ojos + 1 m dentro del alto de la caja, y nunca dentro de la caja. Se calcula al abrir la ficha y al reanclar.
  */
-export function posicionAnclada(caja: { min: Vec3; max: Vec3 }, ojo: Vec3): Vec3 {
-  const cx = (caja.min[0] + caja.max[0]) / 2, cz = (caja.min[2] + caja.max[2]) / 2;
-  const hx = (caja.max[0] - caja.min[0]) / 2, hz = (caja.max[2] - caja.min[2]) / 2;
-  let dx = ojo[0] - cx, dz = ojo[2] - cz;
-  const n = Math.hypot(dx, dz);
-  if (n < 1e-6) { dx = 0; dz = 1; } else { dx /= n; dz /= n; }
-  const t = Math.min(Math.abs(dx) > 1e-9 ? hx / Math.abs(dx) : Infinity, Math.abs(dz) > 1e-9 ? hz / Math.abs(dz) : Infinity);
-  const d = t + SEPARACION_ANCLA;
-  return [cx + dx * d, caja.min[1] + (caja.max[1] - caja.min[1]) / 3, cz + dz * d];
+export function posicionAnclada(caja: Caja3, ojo: Vec3): Vec3 {
+  const q = ojo.map((v, i) => Math.min(caja.max[i], Math.max(caja.min[i], v))) as Vec3;
+  let dir: Vec3 = [q[0] - ojo[0], q[1] - ojo[1], q[2] - ojo[2]];
+  let dist = Math.hypot(...dir);
+  let d: number;
+  if (dist < 1e-6) { // el ojo está dentro de la caja: 6 m hacia el centro
+    dir = [(caja.min[0] + caja.max[0]) / 2 - ojo[0], 0, (caja.min[2] + caja.max[2]) / 2 - ojo[2]];
+    dist = Math.hypot(...dir);
+    if (dist < 1e-6) { dir = [0, 0, 1]; dist = 1; }
+    d = PANEL_MIN_M;
+  } else {
+    d = Math.min(PANEL_MAX_M, Math.max(PANEL_MIN_M, dist - SEPARACION_ANCLA));
+  }
+  const u = dir.map((v) => v / dist) as Vec3;
+  const y = Math.min(caja.max[1], Math.max(caja.min[1], ojo[1] + 1));
+  let p: Vec3 = [ojo[0] + u[0] * d, y, ojo[2] + u[2] * d];
+  if (dentro(caja, p)) { // sigue la dirección hasta salir de la caja (en horizontal)
+    let t = Infinity;
+    for (const i of [0, 2]) if (Math.abs(u[i]) > 1e-9) t = Math.min(t, ((u[i] > 0 ? caja.max[i] : caja.min[i]) - p[i]) / u[i]);
+    if (!Number.isFinite(t)) t = 0;
+    p = [p[0] + u[0] * (t + 1), y, p[2] + u[2] * (t + 1)];
+  }
+  return p;
 }
 
 /** Altura aparente en px de algo de `metros` a 25 m, en un ojo de `PX_OJO_ALTO` px y `CAMPO_VERTICAL_GRADOS`. */
@@ -203,6 +228,9 @@ export class GestorFichas {
   private panel: THREE.Group | null = null;
   private token = 0;
   private anclado = false;
+  private anclaId: string | null | undefined = undefined;
+  private anclaSinPieza = false;
+  private readonly ojoAncla = new THREE.Vector3();
   private icono: THREE.Group | null = null;
   private readonly explotada: VistaExplotada;
   private readonly caja = new THREE.Box3();
@@ -248,6 +276,7 @@ export class GestorFichas {
     if (this.panel) liberarPanelFicha(this.panel);
     this.panel = null;
     this.anclado = false;
+    this.anclaSinPieza = false;
     if (this.icono) liberarPanelFicha(this.icono);
     this.icono = null;
   }
@@ -259,28 +288,35 @@ export class GestorFichas {
     this.explotada.actualizar(modulo?.tipo === 'grua-sts' ? obj : undefined, !!pedida && !!this.panel, dt, this.camara);
     if (this.panel) {
       // En la maqueta AR (raíz escalada) el panel del docente taparía la vista: ahí no se muestra.
-      if (this.viva.raiz.scale.x !== 1) this.panel.visible = false;
-      else if (this.modo === 'visor') this.colocarAnclado(obj);
+      if (this.viva.raiz.scale.x !== 1) { this.panel.visible = false; if (this.icono) this.icono.visible = false; }
+      else if (this.modo === 'visor') this.colocarAnclado(obj, e?.resaltado);
       else this.colocar(obj);
     }
   }
 
   /**
-   * Visor: el panel se ancla una sola vez (primer cuadro con alto y pieza) y de ahí no se traslada; solo gira sobre el eje
-   * vertical para mirar al alumno. Tamaño fijo en metros.
+   * Visor: el panel se ancla (primer cuadro con alto y pieza; de nuevo si cambia la pieza resaltada o el ojo se aleja más de
+   * `REANCLAR_M` de donde estaba al anclar) y mientras tanto no se traslada; solo gira sobre el eje vertical. Tamaño fijo en metros.
    */
-  private colocarAnclado(obj: THREE.Object3D | undefined): void {
+  private colocarAnclado(obj: THREE.Object3D | undefined, resaltado: string | null | undefined): void {
     const panel = this.panel!;
+    if ((panel.userData.alto as number) <= 0) { panel.visible = false; if (this.icono) this.icono.visible = false; return; }
+    this.caja.makeEmpty();
+    if (obj) { obj.updateWorldMatrix(true, true); this.caja.setFromObject(obj); }
+    if (!this.caja.isEmpty() && this.ficha?.explotada) this.caja.expandByScalar(MARGEN_EXPLOTADA);
+    this.camara.updateMatrixWorld();
+    this.adelante.setFromMatrixPosition(this.camara.matrixWorld);
+    const hayPieza = !this.caja.isEmpty();
+    if (this.anclado && (resaltado !== this.anclaId || this.adelante.distanceTo(this.ojoAncla) > REANCLAR_M)) this.anclado = false;
+    if (hayPieza && this.anclaSinPieza) this.anclado = false;
     if (!this.anclado) {
-      if ((panel.userData.alto as number) <= 0) { panel.visible = false; return; }
-      this.caja.makeEmpty();
-      if (obj) { obj.updateWorldMatrix(true, true); this.caja.setFromObject(obj); }
-      this.camara.updateMatrixWorld();
-      this.adelante.setFromMatrixPosition(this.camara.matrixWorld);
-      if (this.caja.isEmpty()) {
-        // Sin pieza (resaltado vacío): a 10 m al frente, a la altura de los ojos.
+      this.anclaId = resaltado;
+      this.ojoAncla.copy(this.adelante);
+      if (!hayPieza) {
+        // Sin pieza: a 10 m al frente, y se sigue intentando anclar a la pieza cuando aparezca.
         this.camara.getWorldDirection(this.derecha).setY(0).normalize();
         panel.position.copy(this.adelante).addScaledVector(this.derecha, 10);
+        this.anclaSinPieza = true;
       } else {
         const [x, y, z] = posicionAnclada(
           { min: this.caja.min.toArray() as Vec3, max: this.caja.max.toArray() as Vec3 },
@@ -290,18 +326,17 @@ export class GestorFichas {
         if (this.icono) {
           this.icono.position.set((this.caja.min.x + this.caja.max.x) / 2, this.caja.max.y + ALTURA_ICONO + DIAMETRO_ICONO / 2, (this.caja.min.z + this.caja.max.z) / 2);
         }
+        this.anclaSinPieza = false;
       }
       panel.scale.setScalar(TAMANO_VISOR_M / MEDIDAS.visor.ancho);
-      this.anclado = true;
+      this.anclado = !this.anclaSinPieza;
     }
-    this.camara.updateMatrixWorld();
-    this.adelante.setFromMatrixPosition(this.camara.matrixWorld);
     const giro = Math.atan2(this.adelante.x - panel.position.x, this.adelante.z - panel.position.z);
     panel.rotation.set(0, giro, 0);
     panel.visible = true;
     if (this.icono) {
       this.icono.rotation.set(0, Math.atan2(this.adelante.x - this.icono.position.x, this.adelante.z - this.icono.position.z), 0);
-      this.icono.visible = !this.caja.isEmpty();
+      this.icono.visible = hayPieza;
     }
   }
 
