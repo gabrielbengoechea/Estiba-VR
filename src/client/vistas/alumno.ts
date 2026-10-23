@@ -29,8 +29,12 @@ function crearReticulas(): HTMLElement {
   return capa;
 }
 
-const VERDE = '#3ddc84';
-const ROJO = '#ff5252';
+const MS_AVISO = 2000;
+
+/** El aviso de conexión solo aparece si lleva desconectado 2 s o más; conectado, no se ve nada. */
+export function estadoIndicador(conectado: boolean, msDesconectado: number): 'oculto' | 'aviso' {
+  return !conectado && msDesconectado >= MS_AVISO ? 'aviso' : 'oculto';
+}
 
 interface Indicadores {
   capa: HTMLElement;
@@ -38,22 +42,23 @@ interface Indicadores {
   fps(valor: number): void;
 }
 
-/** Por ojo: punto de conexión y, si se pidió, número de fps. Arriba, lejos de la retícula. */
+/** Por ojo: cartel de «sin conexión» (solo si falla) y, si se pidió, número de fps. Arriba, lejos de la retícula. */
 function crearIndicadores(mostrarFps: boolean): Indicadores {
   const capa = document.createElement('div');
-  const puntos: HTMLElement[] = [];
+  const carteles: HTMLElement[] = [];
   const numeros: HTMLElement[] = [];
   for (const izq of ['25%', '75%']) {
     const grupo = document.createElement('div');
     grupo.style.cssText =
       `position:fixed;top:3%;left:${izq};transform:translateX(-50%);display:flex;align-items:center;gap:12px;` +
       'pointer-events:none;font:700 40px/1 system-ui,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000';
-    const punto = document.createElement('div');
-    punto.style.cssText = 'width:40px;height:40px;border-radius:50%;border:3px solid #fff;box-sizing:border-box';
-    punto.style.background = ROJO;
-    punto.title = 'sin conexión';
-    grupo.append(punto);
-    puntos.push(punto);
+    const cartel = document.createElement('div');
+    cartel.style.cssText =
+      'display:none;padding:6px 14px;border-radius:12px;background:rgba(200,30,30,0.7);' +
+      'font:600 40px/1 system-ui,sans-serif;white-space:nowrap';
+    cartel.textContent = 'Sin conexión, reconectando…';
+    grupo.append(cartel);
+    carteles.push(cartel);
     if (mostrarFps) {
       const n = document.createElement('span');
       grupo.append(n);
@@ -61,13 +66,20 @@ function crearIndicadores(mostrarFps: boolean): Indicadores {
     }
     capa.append(grupo);
   }
+  // Arranca «desconectado» desde ahora: si la conexión tarda menos de 2 s, el cartel nunca se ve.
+  let conectado = false;
+  let desde = performance.now();
+  const evaluar = () => {
+    const visible = estadoIndicador(conectado, performance.now() - desde) === 'aviso';
+    for (const c of carteles) c.style.display = visible ? 'block' : 'none';
+  };
+  setInterval(evaluar, 500);
   return {
     capa,
     conexion(c) {
-      for (const p of puntos) {
-        p.style.background = c ? VERDE : ROJO;
-        p.title = c ? 'conectado' : 'sin conexión';
-      }
+      if (c !== conectado) desde = performance.now();
+      conectado = c;
+      evaluar();
     },
     fps(v) {
       for (const n of numeros) n.textContent = String(v);
