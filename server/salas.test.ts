@@ -363,6 +363,32 @@ describe('Salas', () => {
     expect((await a.estado()).escena.modulos).toHaveLength(2);
   });
 
+  it('un archivo guardado con trazados inválidos se ignora y se usa el contenido por defecto', async () => {
+    const { writeFileSync } = await import('node:fs');
+    const silencio = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const c = contenido();
+    writeFileSync(join(dir, '7778.json'), JSON.stringify({ escena: { ...c.escena, trazados: 'abc' }, clase: c.clase }));
+    const p = await levantar();
+    const a = await unir(p, 'alumno', '7778');
+    const e = await a.estado();
+    expect(Array.isArray(e.escena.trazados ?? [])).toBe(true);
+    expect(e.escena.modulos).toHaveLength(2);
+    expect(silencio).toHaveBeenCalled();
+    silencio.mockRestore();
+  });
+
+  it('un archivo guardado en el formato viejo (sin trazados) abre igual', async () => {
+    const { writeFileSync } = await import('node:fs');
+    const c = contenido();
+    c.escena.modulos = c.escena.modulos.slice(0, 1);
+    writeFileSync(join(dir, '7779.json'), JSON.stringify(c));
+    const p = await levantar();
+    const a = await unir(p, 'alumno', '7779');
+    const e = await a.estado();
+    expect(e.escena.modulos).toHaveLength(1);
+    expect('trazados' in e.escena).toBe(false);
+  });
+
   it('tras 5 PIN malos desde la misma dirección, el sexto con PIN correcto también se rechaza', async () => {
     const p = await levantar();
     for (let i = 0; i < 5; i += 1) {

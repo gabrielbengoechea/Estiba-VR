@@ -57,7 +57,7 @@ export function crearServidor(opts: OpcionesSalas & { dirWeb: string; latidoMs?:
   };
   const http: Server = opts.tls ? crearHttps(opts.tls, atender) : crearHttp(atender);
 
-  const wss = new WebSocketServer({ noServer: true, maxPayload: 256 * 1024 });
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
   wss.on('connection', (ws, req) => salas.conectar(ws, ipCliente(req)));
   iniciarLatido(wss, opts.latidoMs ?? LATIDO_MS);
 

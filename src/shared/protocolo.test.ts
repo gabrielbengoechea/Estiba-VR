@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leerMsgCliente } from './protocolo';
+import { leerEscena, leerMsgCliente, MAX_PUNTOS_ESCENA } from './protocolo';
 
 const v = (x = 0): [number, number, number] => [x, 0, 0];
 const modulo = { id: 'm1', tipo: 'grua-sts', celda: [1, 2], rot: 90 };
@@ -225,5 +225,27 @@ describe('leerMsgCliente: trazados, posición libre y recorrido libre', () => {
     expect(cmd({ t: 'recorridoLibre', activo: true })).toEqual({ t: 'comando', c: { t: 'recorridoLibre', activo: true } });
     expect(cmd({ t: 'recorridoLibre', activo: 'si' })).toBeNull();
     expect(cmd({ t: 'recorridoLibre' })).toBeNull();
+  });
+});
+
+describe('leerEscena: límites y duplicados', () => {
+  const tr = (id: string, n: number) => ({ id, tipo: 'via', puntos: Array.from({ length: n }, (_, i) => [i, 0]) });
+  const base = { metrosPorCelda: 2, modulos: [modulo], vistas: {} };
+  const restaurar = (escena: unknown) =>
+    leerMsgCliente(JSON.stringify({ t: 'comando', c: { t: 'escena', op: { op: 'restaurar', escena } } }));
+
+  it('acepta 5000 puntos en total y rechaza 5001', () => {
+    expect(MAX_PUNTOS_ESCENA).toBe(5000);
+    const diez = (n: number) => Array.from({ length: 10 }, (_, i) => tr(`t${i}`, n));
+    expect(restaurar({ ...base, trazados: diez(500) })).not.toBeNull();
+    expect(restaurar({ ...base, trazados: [...diez(500).slice(0, 9), tr('u', 500), tr('v', 1)] })).toBeNull();
+    expect(leerEscena({ ...base, trazados: [...diez(500)] })).not.toBeNull();
+    expect(leerEscena({ ...base, trazados: [...diez(500), tr('x', 2)] })).toBeNull();
+  });
+
+  it('rechaza ids de módulo o de trazado repetidos', () => {
+    expect(leerEscena({ ...base, modulos: [modulo, modulo] })).toBeNull();
+    expect(leerEscena({ ...base, trazados: [tr('a', 2), tr('a', 2)] })).toBeNull();
+    expect(leerEscena({ ...base, trazados: [tr('a', 2), tr('b', 2)] })).not.toBeNull();
   });
 });

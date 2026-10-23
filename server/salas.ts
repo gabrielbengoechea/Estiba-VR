@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { RawData, WebSocket } from 'ws';
-import { leerMsgCliente, type MsgServidor } from '../src/shared/protocolo';
+import { leerEscena, leerMsgCliente, type MsgServidor } from '../src/shared/protocolo';
 import { Participantes } from './participantes';
 import { pinCorrecto } from './pin';
 import { aplicarComando, estadoInicial } from '../src/shared/sala';
@@ -43,9 +43,11 @@ function rechazar(ws: WebSocket, motivo: string): void {
 
 const esObjeto = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
 
-function contenidoValido(x: unknown): x is { escena: Escena; clase: Clase } {
-  if (!esObjeto(x) || !esObjeto(x.escena) || !esObjeto(x.clase)) return false;
-  return Array.isArray(x.escena.modulos) && esObjeto(x.escena.vistas) && Array.isArray(x.clase.pasos);
+/** Valida a fondo la escena guardada (misma validación que `restaurar`); la clase se comprueba por forma. */
+function leerContenido(x: unknown): { escena: Escena; clase: Clase } | null {
+  if (!esObjeto(x) || !esObjeto(x.clase) || !Array.isArray(x.clase.pasos)) return null;
+  const escena = leerEscena(x.escena);
+  return escena ? { escena, clase: x.clase as unknown as Clase } : null;
 }
 
 export class Salas {
@@ -199,7 +201,9 @@ export class Salas {
   private cargar(codigo: string): { escena: Escena; clase: Clase } | null {
     try {
       const x: unknown = JSON.parse(readFileSync(this.archivo(codigo), 'utf8'));
-      return contenidoValido(x) ? { escena: x.escena, clase: x.clase } : null;
+      const c = leerContenido(x);
+      if (!c) console.error(`La sala guardada ${codigo} tiene un contenido inválido; se usa el contenido por defecto.`);
+      return c;
     } catch {
       return null; // no existe o está dañado: se usa el contenido por defecto
     }

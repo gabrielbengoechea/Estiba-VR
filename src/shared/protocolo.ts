@@ -38,6 +38,8 @@ const ROTS: readonly number[] = [0, 90, 180, 270];
 const TIPOS_TRAZADO: readonly TipoTrazado[] = ['via', 'carril', 'camino'];
 export const MAX_PUNTOS_TRAZADO = 500;
 export const MAX_TRAZADOS = 200;
+/** Tope de puntos sumando todos los trazados de una escena (mantiene el estado y los snapshots de deshacer acotados). */
+export const MAX_PUNTOS_ESCENA = 5000;
 
 type Obj = Record<string, unknown>;
 
@@ -115,9 +117,11 @@ function leerTrazado(x: unknown): Trazado | null {
 export function leerEscena(x: unknown): Escena | null {
   if (!esObj(x) || !esNum(x.metrosPorCelda) || !Array.isArray(x.modulos) || !esObj(x.vistas)) return null;
   const modulos: Modulo[] = [];
+  const idsModulo = new Set<string>();
   for (const m of x.modulos) {
     const mod = leerModulo(m);
-    if (!mod) return null;
+    if (!mod || idsModulo.has(mod.id)) return null;
+    idsModulo.add(mod.id);
     modulos.push(mod);
   }
   const vistas: Record<string, Vista> = {};
@@ -130,9 +134,14 @@ export function leerEscena(x: unknown): Escena | null {
   if (x.trazados !== undefined) {
     if (!Array.isArray(x.trazados) || x.trazados.length > MAX_TRAZADOS) return null;
     const trazados: Trazado[] = [];
+    const idsTrazado = new Set<string>();
+    let total = 0;
     for (const t of x.trazados) {
       const tr = leerTrazado(t);
-      if (!tr) return null;
+      if (!tr || idsTrazado.has(tr.id)) return null;
+      idsTrazado.add(tr.id);
+      total += tr.puntos.length;
+      if (total > MAX_PUNTOS_ESCENA) return null;
       trazados.push(tr);
     }
     escena.trazados = trazados;

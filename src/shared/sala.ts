@@ -2,6 +2,7 @@ import type {
   Clase, Escena, EstadoSala, Modulo, Paso, Trazado, Ubicacion, Vec3, Vista,
 } from './tipos';
 import { mundoACelda } from './grilla';
+import { MAX_PUNTOS_ESCENA } from './protocolo';
 
 export type OpEscena =
   | { op: 'agregar'; modulo: Modulo } | { op: 'mover'; id: string; celda?: [number, number]; pos?: [number, number] }
@@ -22,6 +23,9 @@ export type Comando =
 type Efectos = Pick<EstadoSala, 'paso' | 'ubicacion' | 'resaltado' | 'fichaAbierta' | 'mirenAca' | 'animacion'>;
 
 const CERO: Vec3 = [0, 0, 0];
+
+const totalPuntos = (ts: Trazado[], salvo?: string): number =>
+  ts.reduce((n, t) => (t.id === salvo ? n : n + t.puntos.length), 0);
 
 const normalizarGrados = (g: number): number => ((g % 360) + 360) % 360;
 
@@ -117,12 +121,14 @@ function aplicarEscena(e: EstadoSala, o: OpEscena): EstadoSala {
       const t = o.trazado;
       const previos = e.escena.trazados ?? [];
       if (t.puntos.length < 2 || previos.some((x) => x.id === t.id)) return e;
+      if (totalPuntos(previos) + t.puntos.length > MAX_PUNTOS_ESCENA) return e;
       return conVersion(e, { escena: { ...e.escena, trazados: [...previos, t] } });
     }
     case 'editarTrazado': {
       const previos = e.escena.trazados ?? [];
       const i = previos.findIndex((x) => x.id === o.id);
       if (i < 0 || o.puntos.length < 2) return e;
+      if (totalPuntos(previos, o.id) + o.puntos.length > MAX_PUNTOS_ESCENA) return e;
       const trazados = previos.slice();
       trazados[i] = { ...previos[i], puntos: o.puntos };
       return conVersion(e, { escena: { ...e.escena, trazados } });

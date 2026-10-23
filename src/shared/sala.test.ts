@@ -516,3 +516,18 @@ describe('formato viejo', () => {
     expect(msg).toEqual({ t: 'comando', c: { t: 'escena', op: { op: 'restaurar', escena: vieja } } });
   });
 });
+
+describe('trazados: tope de puntos por escena', () => {
+  const op = (o: Extract<Comando, { t: 'escena' }>['op']): Comando => ({ t: 'escena', op: o });
+  const pts = (n: number): [number, number][] => Array.from({ length: n }, (_, i) => [i, 0]);
+
+  it('agregarTrazado y editarTrazado que pasarían de 5000 puntos no hacen nada', () => {
+    let e = crear();
+    for (let i = 0; i < 10; i += 1) e = aplicar(e, op({ op: 'agregarTrazado', trazado: { id: `t${i}`, tipo: 'via', puntos: pts(500) } }));
+    expect(e.escena.trazados).toHaveLength(10);
+    expect(aplicar(e, op({ op: 'agregarTrazado', trazado: { id: 'x', tipo: 'via', puntos: pts(2) } }))).toBe(e);
+    const menos = aplicar(e, op({ op: 'editarTrazado', id: 't0', puntos: pts(100) }));
+    expect(aplicar(menos, op({ op: 'agregarTrazado', trazado: { id: 'x', tipo: 'via', puntos: pts(400) } })).escena.trazados).toHaveLength(11);
+    expect(aplicar(menos, op({ op: 'editarTrazado', id: 't1', puntos: pts(1000) }))).toBe(menos);
+  });
+});
