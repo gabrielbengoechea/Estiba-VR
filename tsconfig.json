@@ -12,5 +12,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src", "server", "tools/carga.ts", "tools/carga.test.ts", "vite.config.ts"]
+  "include": ["src", "server", "e2e", "playwright.config.ts", "tools/carga.ts", "tools/carga.test.ts", "vite.config.ts"]
 }

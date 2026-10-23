@@ -189,9 +189,10 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
     alCuadro: (dt, e) => { fichas.cuadro(dt, e); animador.cuadro(dt, e); },
   });
 
-  // Para depurar desde la consola: ?debug=1
+  // Para depurar desde la consola: ?debug=1 (`estado()` devuelve el último estado de sala recibido)
+  let ultimoEstado: EstadoSala | null = null;
   if (new URLSearchParams(location.search).get('debug') === '1') {
-    (window as unknown as { __estiba: unknown }).__estiba = { reproductor, camara: cabeza, viva, fichas };
+    (window as unknown as { __estiba: unknown }).__estiba = { reproductor, camara: cabeza, viva, fichas, estado: () => ultimoEstado };
   }
 
   const reticulas = crearReticulas();
@@ -201,6 +202,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
   const indicadores = crearIndicadores(mostrarFps);
   app.append(indicadores.capa);
   const conexion = conectarSala(app, indicadores, (e) => {
+    ultimoEstado = e;
     const json = JSON.stringify(e.escena);
     if (json !== escenaJson) {
       escenaJson = json;
