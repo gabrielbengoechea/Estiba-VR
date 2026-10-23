@@ -12,7 +12,7 @@ import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
 import { Reproductor } from '../clase/reproductor';
 import { iniciarXR } from './xr';
-import { baseDeAula, comandoTraer, esLinkLocal, filaParticipante, resumenSala, factorSuavizado, idFichaAlternada, mirenAcaTrasClic, teclaAComando, urlAlumno } from './controlesDocente';
+import { baseDeAula, comandoTraer, esLinkLocal, esTeclaLista, filaParticipante, resumenSala, factorSuavizado, idFichaAlternada, mirenAcaTrasClic, teclaAComando, urlAlumno } from './controlesDocente';
 
 export type ModoEscritorio = 'proyector' | 'docente';
 
@@ -88,6 +88,10 @@ export class VistaEscritorio {
 
     this.conexion = new ConexionSala(sala, modo, pin);
     this.conexion.alEstado((e) => this.recibirEstado(e));
+    addEventListener('keydown', (ev) => {
+      if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement) return;
+      if (esTeclaLista(ev) && !ev.repeat) { this.verLista = !this.verLista; this.actualizarHud(); }
+    });
     this.conexion.alParticipantes((l) => { this.participantes = l; this.actualizarHud(); });
     this.conexion.alCambioConexion((c) => this.mostrarConexion(c ? '' : 'Sin conexión con la sala. Reintentando…'));
     this.conexion.alError((motivo) => this.mostrarConexion(motivo));
@@ -249,10 +253,6 @@ export class VistaEscritorio {
     addEventListener('keydown', (ev) => {
       if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement) return;
       if (ev.key === 'm' || ev.key === 'M') { this.teclaM = true; return; }
-      if ((ev.key === 'p' || ev.key === 'P') && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
-        if (!ev.repeat) { this.verLista = !this.verLista; this.actualizarHud(); }
-        return;
-      }
       if (ev.key === 'f' || ev.key === 'F') {
         // Abre la ficha del paso actual, o la cierra si ya está abierta.
         const e = this.estado;

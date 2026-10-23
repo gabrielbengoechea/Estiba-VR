@@ -110,3 +110,8 @@ export function filaParticipante(p: Participante, ahora: number): string {
   const min = Math.max(0, Math.floor((ahora - p.desde) / 60_000));
   return [p.nombre, bat, ...(p.cargando ? ['cargando'] : []), `${min} min`].join(' · ');
 }
+
+/** `P` (sin Ctrl, Meta ni Alt) abre o cierra la lista de la sala. */
+export function esTeclaLista(ev: { key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): boolean {
+  return (ev.key === 'p' || ev.key === 'P') && !ev.ctrlKey && !ev.metaKey && !ev.altKey;
+}

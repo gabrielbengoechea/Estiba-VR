@@ -110,7 +110,7 @@ const DISPOSITIVO_CADA_MS = 30_000;
 interface BateriaLike { level: number; charging: boolean }
 
 /** Manda el estado de batería al conectar (y al reconectar) y cada 30 s; sin API de batería manda nulls. */
-function informarDispositivo(conexion: ConexionSala): void {
+function informarDispositivo(conexion: ConexionSala): () => void {
   const enviar = (): void => {
     if (!conexion.conectado) return;
     const nav = navigator as Navigator & { getBattery?: () => Promise<BateriaLike> };
@@ -120,7 +120,8 @@ function informarDispositivo(conexion: ConexionSala): void {
       .catch(() => conexion.enviarDispositivo(null, null));
   };
   conexion.alCambioConexion((c) => { if (c) enviar(); });
-  setInterval(enviar, DISPOSITIVO_CADA_MS);
+  const timer = setInterval(enviar, DISPOSITIVO_CADA_MS);
+  return () => clearInterval(timer);
 }
 
 function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: EstadoSala) => void, alPose?: (p: PoseServidor) => void): ConexionSala | null {
@@ -130,8 +131,9 @@ function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: 
     conexion.alEstado(alEstado);
     if (alPose) conexion.alPose(alPose);
     conexion.alCambioConexion((c) => indicadores.conexion(c));
-    informarDispositivo(conexion);
+    const detenerDispositivo = informarDispositivo(conexion);
     conexion.alError((motivo) => {
+      detenerDispositivo(); // error fatal o no: el latido de dispositivo no tiene sentido sin sala
       indicadores.conexion(false);
       mostrarMotivo(app, motivo);
     });

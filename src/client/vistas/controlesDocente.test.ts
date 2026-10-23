@@ -1,6 +1,6 @@
 import type { Participante } from '../../shared/protocolo';
 import { describe, expect, it } from 'vitest';
-import { baseDeAula, comandoTraer, mirenAcaTrasClic, esLinkLocal, factorSuavizado, guinadaHacia, idFichaAlternada, resumenSala, filaParticipante, teclaAComando, urlAlumno } from './controlesDocente';
+import { baseDeAula, comandoTraer, mirenAcaTrasClic, esLinkLocal, factorSuavizado, guinadaHacia, idFichaAlternada, resumenSala, filaParticipante, esTeclaLista, teclaAComando, urlAlumno } from './controlesDocente';
 
 describe('teclaAComando', () => {
   it('las flechas pasan de paso', () => {
@@ -150,5 +150,16 @@ describe('filaParticipante', () => {
   it('muestra batería, cargando y minutos', () => {
     expect(filaParticipante(part({ bateria: 0.456, cargando: true, desde: 0 }), 125_000)).toBe('Alumno 1 · batería 46 % · cargando · 2 min');
     expect(filaParticipante(part({}), 0)).toBe('Alumno 1 · batería ? · 0 min');
+  });
+});
+
+describe('esTeclaLista', () => {
+  it('acepta P y p; rechaza modificadores y otras teclas', () => {
+    expect(esTeclaLista({ key: 'p' })).toBe(true);
+    expect(esTeclaLista({ key: 'P' })).toBe(true);
+    expect(esTeclaLista({ key: 'p', ctrlKey: true })).toBe(false);
+    expect(esTeclaLista({ key: 'P', metaKey: true })).toBe(false);
+    expect(esTeclaLista({ key: 'p', altKey: true })).toBe(false);
+    expect(esTeclaLista({ key: 'o' })).toBe(false);
   });
 });
