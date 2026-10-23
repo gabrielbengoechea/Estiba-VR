@@ -51,7 +51,9 @@ export class ConexionSala {
   private intento = 0;
   private temporizador: ReturnType<typeof setTimeout> | null = null;
   private cerrada = false;
-  private fatal = false;
+  private esFatal = false;
+  /** Verdadero tras un error del servidor tras el cual no se reconecta. */
+  get fatal(): boolean { return this.esFatal; }
   private ultimaPose = -Infinity;
   private poseDiferida: PoseSaliente | null = null;
   private timerPose: ReturnType<typeof setTimeout> | null = null;
@@ -177,7 +179,7 @@ export class ConexionSala {
       this.detenerVigia();
       this.reloj.detener();
       this.limpiarPose();
-      if (!this.cerrada && !this.fatal) {
+      if (!this.cerrada && !this.esFatal) {
         const espera = ESPERAS_MS[Math.min(this.intento, ESPERAS_MS.length - 1)];
         this.intento++;
         this.temporizador = setTimeout(() => this.abrir(), espera);
@@ -200,7 +202,7 @@ export class ConexionSala {
       case 'participantes': this.avisar(this.cbParticipantes, m.lista); break;
       case 'pong': this.reloj.recibirPong(m.tc, m.ts); break;
       case 'error':
-        if (ERRORES_FATALES.includes(m.motivo)) this.fatal = true;
+        if (ERRORES_FATALES.includes(m.motivo)) this.esFatal = true;
         this.avisar(this.cbError, m.motivo);
         break;
     }

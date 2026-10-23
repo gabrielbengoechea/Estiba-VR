@@ -133,7 +133,7 @@ function conectarSala(app: HTMLElement, indicadores: Indicadores, alEstado: (e: 
     conexion.alCambioConexion((c) => indicadores.conexion(c));
     const detenerDispositivo = informarDispositivo(conexion);
     conexion.alError((motivo) => {
-      detenerDispositivo(); // error fatal o no: el latido de dispositivo no tiene sentido sin sala
+      if (conexion.fatal) detenerDispositivo(); // con un error no fatal se reconecta y el aviso sigue
       indicadores.conexion(false);
       mostrarMotivo(app, motivo);
     });

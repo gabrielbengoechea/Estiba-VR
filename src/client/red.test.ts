@@ -44,6 +44,17 @@ describe('ConexionSala', () => {
     c.cerrar();
   });
 
+  it('fatal es false tras un error no fatal y true tras uno fatal', () => {
+    const c = crear();
+    const s = Falso.todos[0];
+    s.abrir();
+    expect(c.fatal).toBe(false);
+    s.recibir({ t: 'error', motivo: 'algo raro' });
+    expect(c.fatal).toBe(false);
+    s.recibir({ t: 'error', motivo: 'PIN incorrecto' });
+    expect(c.fatal).toBe(true);
+  });
+
   it('no reconecta tras un error fatal y lo expone', () => {
     const c = crear();
     const errores: string[] = [];
