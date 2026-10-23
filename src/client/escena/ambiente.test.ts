@@ -18,13 +18,16 @@ describe('planos de cámara y suelo', () => {
     expect(CERCA).toBe(0.5);
     expect(LEJOS).toBe(1500);
   });
-  it('la tapa del suelo queda en y = -0,1', () => {
+  it('la tapa del suelo queda en y = -0,02', () => {
     const e = new THREE.Scene();
     crearAmbiente(e);
     const suelo = e.getObjectByName('suelo') as THREE.Mesh;
     suelo.geometry.computeBoundingBox();
-    expect(TOPE_SUELO).toBe(-0.1);
-    expect(suelo.position.y + suelo.geometry.boundingBox!.max.y).toBeCloseTo(-0.1, 6);
+    expect(TOPE_SUELO).toBe(-0.02);
+    expect(suelo.position.y + suelo.geometry.boundingBox!.max.y).toBeCloseTo(-0.02, 6);
+    const tapa = (suelo.material as THREE.MeshStandardMaterial[])[2];
+    expect(tapa.polygonOffset).toBe(true);
+    expect(tapa.polygonOffsetFactor).toBeGreaterThan(0);
   });
 });
 

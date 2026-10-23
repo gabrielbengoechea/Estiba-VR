@@ -77,11 +77,17 @@ function mat(hex: string, rugosidad = 0.8): THREE.MeshStandardMaterial {
 }
 
 /** Material de línea pintada: se dibuja por encima del pavimento sin pelear por la profundidad. */
+const pinturaCache = new Map<string, THREE.MeshStandardMaterial>();
 function matPintura(hex: string): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({
-    color: hex, roughness: 0.8, metalness: 0.05, flatShading: true,
-    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
-  });
+  let m = pinturaCache.get(hex);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({
+      color: hex, roughness: 0.8, metalness: 0.05, flatShading: true,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    });
+    pinturaCache.set(hex, m);
+  }
+  return m;
 }
 
 const cajaUnidad = new THREE.BoxGeometry(1, 1, 1);
