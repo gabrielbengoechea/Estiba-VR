@@ -55,7 +55,7 @@ function crearIndicadores(mostrarFps: boolean): Indicadores {
     const cartel = document.createElement('div');
     cartel.style.cssText =
       'display:none;padding:6px 14px;border-radius:12px;background:rgba(200,30,30,0.7);' +
-      'font:600 40px/1 system-ui,sans-serif;white-space:nowrap';
+      'box-sizing:border-box;max-width:40vw;text-align:center;white-space:normal;font:600 40px/1.1 system-ui,sans-serif';
     cartel.textContent = 'Sin conexión, reconectando…';
     grupo.append(cartel);
     carteles.push(cartel);
