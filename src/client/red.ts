@@ -2,6 +2,7 @@ import type { Comando } from '../shared/sala';
 import type { MsgCliente, MsgServidor, Participante } from '../shared/protocolo';
 import type { EstadoSala, Rol } from '../shared/tipos';
 import { Reloj } from './reloj';
+import { baseServidor, urlWebSocket } from './servidor';
 
 /** Errores del servidor tras los cuales no tiene sentido reconectar. */
 const ERRORES_FATALES = [
@@ -39,6 +40,8 @@ export interface OpcionesRed {
 const ABIERTO = 1;
 
 export function urlPorDefecto(): string {
+  const base = baseServidor();
+  if (base) return urlWebSocket(base);
   const seguro = location.protocol === 'https:';
   return `${seguro ? 'wss:' : 'ws:'}//${location.host}/ws`;
 }

@@ -34,6 +34,8 @@ const http = crearServidor({
   dirWeb: join(raiz, 'dist'),
   dirDatos,
   tls: https ? obtenerCertificado(dirDatos) : undefined,
+  // Página servida desde otro dominio (Vercel): ESTIBA_ORIGENES=https://estiba.vercel.app[,https://otro…]
+  errores: { origenes: (process.env.ESTIBA_ORIGENES ?? '').split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean) },
   contenidoPorDefecto: () => ({
     escena: leerJson<Escena>(join(dirPublico, 'escenas', 'terminal-a.json')),
     clase: leerJson<Clase>(join(dirPublico, 'clases', 'terminal-contenedores.json')),

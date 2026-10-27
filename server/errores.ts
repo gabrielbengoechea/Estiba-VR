@@ -13,6 +13,8 @@ export interface OpcionesErrores {
   maxArchivo?: number;
   /** Intentos de PIN fallidos por minuto por IP en /errores. */
   fallosPinPorMinuto?: number;
+  /** Orígenes de páginas servidas desde otro dominio (p. ej. Vercel) que pueden mandar avisos a /api/errores. */
+  origenes?: string[];
 }
 
 const CAMPOS = ['rol', 'sala', 'mensaje', 'pila', 'url', 'ua'] as const;
@@ -51,6 +53,7 @@ export function crearRegistroErrores(dirDatos: string, pin: string, opts: Opcion
   const maxArchivo = opts.maxArchivo ?? 5 * 1024 * 1024;
   const avisos = new LimitePorIp(opts.porMinuto ?? 20);
   const fallosPin = new LimitePorIp(opts.fallosPinPorMinuto ?? 5);
+  const origenes = new Set(opts.origenes ?? []);
   const actual = join(dirDatos, 'errores.log');
   const anterior = join(dirDatos, 'errores.1.log');
   let cola: Promise<void> = Promise.resolve(); // las escrituras van de a una: la rotación no se pisa
@@ -145,6 +148,16 @@ export function crearRegistroErrores(dirDatos: string, pin: string, opts: Opcion
   return function atender(req: IncomingMessage, res: ServerResponse, url: URL): boolean {
     const fallo = (): void => { if (!res.headersSent) texto(res, 500, 'Error interno'); else res.end(); };
     if (url.pathname === '/api/errores') {
+      const origen = req.headers.origin;
+      if (origen && origenes.has(origen)) {
+        res.setHeader('Access-Control-Allow-Origin', origen);
+        res.setHeader('Vary', 'Origin');
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, { 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' });
+          res.end();
+          return true;
+        }
+      }
       if (req.method !== 'POST') { res.writeHead(405, { Allow: 'POST' }); res.end(); return true; }
       recibir(req, res).catch(fallo);
       return true;

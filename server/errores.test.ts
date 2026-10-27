@@ -13,7 +13,7 @@ afterEach(async () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-async function levantar(errores?: { maxArchivo?: number; porMinuto?: number }): Promise<string> {
+async function levantar(errores?: { maxArchivo?: number; porMinuto?: number; origenes?: string[] }): Promise<string> {
   dir = mkdtempSync(join(tmpdir(), 'estiba-err-'));
   http = crearServidor({
     pin: '1234', dirDatos: dir, dirWeb: join(dir, 'no-existe'), errores,
@@ -123,5 +123,19 @@ describe('registro de errores', () => {
     const base = await levantar();
     for (let i = 0; i < 5; i++) expect((await fetch(`${base}/errores?pin=000${i}`)).status).toBe(403);
     expect((await fetch(`${base}/errores?pin=1234`)).status).toBe(429);
+  });
+
+  it('acepta avisos de un origen permitido (CORS) y no de otros', async () => {
+    const base = await levantar({ origenes: ['https://estiba.vercel.app'] });
+    const previa = await fetch(`${base}/api/errores`, { method: 'OPTIONS', headers: { Origin: 'https://estiba.vercel.app' } });
+    expect(previa.status).toBe(204);
+    expect(previa.headers.get('access-control-allow-origin')).toBe('https://estiba.vercel.app');
+    expect(previa.headers.get('access-control-allow-headers')).toBe('Content-Type');
+    const ok = await fetch(`${base}/api/errores`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://estiba.vercel.app' }, body: JSON.stringify(err('desde vercel')) });
+    expect(ok.status).toBe(204);
+    expect(ok.headers.get('access-control-allow-origin')).toBe('https://estiba.vercel.app');
+    const otro = await fetch(`${base}/api/errores`, { method: 'OPTIONS', headers: { Origin: 'https://malo.example' } });
+    expect(otro.status).toBe(405);
+    expect(otro.headers.get('access-control-allow-origin')).toBeNull();
   });
 });

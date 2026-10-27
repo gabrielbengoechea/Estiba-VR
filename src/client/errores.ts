@@ -1,4 +1,5 @@
 import type { Rol } from '../shared/tipos';
+import { baseServidor } from './servidor';
 
 const MAX_CAMPO = 2000;
 const MAX_POR_MINUTO = 10;
@@ -19,7 +20,7 @@ const recortar = (t: unknown): string => String(t ?? '').slice(0, MAX_CAMPO);
 
 function enviarAlServidor(cuerpo: string): void {
   try {
-    void fetch('/api/errores', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: cuerpo, keepalive: true })
+    void fetch(`${baseServidor()}/api/errores`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: cuerpo, keepalive: true })
       .catch(() => { /* si el aviso falla, no hay nada más que hacer */ });
   } catch { /* idem */ }
 }

@@ -67,6 +67,18 @@ Qué configura `render.yaml`: servicio web Node 22, build `npm ci --include=dev 
   - Cómo verificar N en Render: desplegar con un `console.log(req.headers['x-forwarded-for'])` temporal en `server/servidor.ts`, hacer `curl -H "X-Forwarded-For: 1.2.3.4" https://<servicio>.onrender.com/` y mirar el log: la IP real de quien llama tiene que ser la entrada N-ésima desde la derecha (con un solo proxy, la última, N=1). Si hay más proxies (por ejemplo un CDN delante), subí `ESTIBA_PROXIES`. Después sacá el log.
 - **Planes**: este blueprint usa un plan pago (`starter`) porque el disco persistente lo exige; ese plan no se duerme. En el plan gratis hay que borrar el bloque `disk` y `ESTIBA_DATOS` de `render.yaml` (las salas guardadas se pierden al reiniciar) y el servidor se duerme tras unos 15 minutos sin uso: abrí la URL ~1 minuto antes de la clase.
 
+## Página en Vercel (servidor en Render)
+
+Vercel solo sirve la página: no puede mantener el WebSocket abierto ni guardar salas, así que el servidor sigue en Render (sección anterior). La página de Vercel se conecta a él. Claude no puede crear cuentas: lo hace el equipo.
+
+1. Tener el servidor andando en Render y anotar su URL, por ejemplo `https://estiba-xxxx.onrender.com`.
+2. En [vercel.com](https://vercel.com), **Add New > Project** e importar el repositorio de GitHub. Vercel lee `vercel.json` (build `npm run build`, salida `dist`; `/editor` sirve `editor.html`).
+3. En **Settings > Environment Variables** del proyecto de Vercel, agregar `VITE_ESTIBA_SERVIDOR` = la URL de Render (sin barra final). Se usa al compilar: después de cambiarla hay que volver a desplegar (**Deployments > Redeploy**).
+4. En Render, en **Environment** del servicio, agregar `ESTIBA_ORIGENES` = la URL que asignó Vercel, por ejemplo `https://estiba-vr.vercel.app` (varias, separadas por comas). Permite que la página de Vercel mande sus errores a `/api/errores`.
+5. Verificar: abrir `https://<proyecto>.vercel.app/?sala=1234&rol=alumno` en un celular y la del docente en otro dispositivo; el alumno tiene que seguir la clase. Si el indicador de conexión queda en aviso, revisar `VITE_ESTIBA_SERVIDOR` y que el servidor de Render esté despierto (en el plan gratis se duerme: abrí su URL un minuto antes).
+
+Cada `git push` a `main` vuelve a desplegar la página en Vercel; el servidor de Render se despliega por su lado.
+
 ## Documentación
 
 - `docs/guia-docente.md`: una página para quien da la clase.
