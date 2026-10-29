@@ -2,6 +2,25 @@
 
 Logística portuaria inmersiva para clases. El docente (Meta Quest 3 o laptop) guía una clase en 3D y los alumnos la siguen con el celular en un visor Cardboard. Todo corre en el navegador, sin instalar nada.
 
+
+## Recorrido en VR (Meta Quest 2 y 3)
+
+Este fork suma un recorrido a pie en realidad virtual. Publicado en **https://gabrielbengoechea.github.io/Estiba-VR/**.
+
+1. En el Quest, abrir la dirección en el navegador del visor y tocar **Entrar en VR** (arriba a la derecha).
+2. Antes de empezar aparece un **tutorial ilustrado** con los controles (como en Mission:ISS). Se avanza con el gatillo.
+3. Controles: **stick izquierdo** caminar (click: correr) · **stick derecho** girar 30° y, hacia adelante, arco de **teletransporte** · **gatillo** ficha de lo que se apunta · **Y** volver al punto de partida · **B** ver el tutorial de nuevo.
+4. Las mallas son colisionables: paredes, estanterías, contenedores y máquinas no se atraviesan (cápsula contra la geometría real con three-mesh-bvh). Si alguien cae al agua o a un vacío, vuelve a tierra firme.
+5. Es la **exploración libre** (`?rol=explorar`, y la portada cuando no se indica sala): no necesita servidor ni docente. La clase guiada con salas sigue igual y necesita el servidor (ver más abajo).
+
+Sin visor: botón **A pie** para recorrer en primera persona con W A S D y el mouse, con las mismas colisiones.
+
+Rendimiento en el Quest 2: 72 Hz, renderizado foveado y, dentro del visor, sin posprocesado ni sombras dinámicas.
+
+Para pruebas: `?debug=1` deja el recorrido y la escena en `window.__vr`.
+
+El código del recorrido está en `src/client/vr/` (tutorial, mundo de colisión, jugador, locomoción) y tiene sus pruebas en `fisica.test.ts`.
+
 ## Desarrollo local
 
 Requiere Node 22.
