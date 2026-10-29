@@ -15,6 +15,7 @@ import { MundoColision } from '../vr/mundo';
 import { RecorridoVR, type ConfigRecorrido } from '../vr/recorrido';
 import { tarjetaResumen, tarjetasControles, type Tarjeta } from '../vr/tarjetas';
 import { mostrarPortada } from '../vr/tutorial';
+import { menuEstiba } from './escenasEstiba';
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -40,6 +41,7 @@ const portada: Tarjeta = {
     'Caminá entre las patas de las grúas pórtico y los bloques del patio',
     'Apuntá a una grúa, al buque, al patio o al tren y apretá el gatillo para ver su ficha',
     'Con el teletransporte podés subir a la cubierta del buque',
+    'Con el gatillo izquierdo abrís el menú: escenas guiadas (atraque, descarga, patio, tren), lugares y el reloj de las animaciones',
   ],
 };
 const pantalla: Tarjeta = {
@@ -126,6 +128,8 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
   caja.min.y = -10;
   caja.max.y = Math.max(caja.max.y, 90);
   const suelo = escena.getObjectByName('suelo');
+  // Menú del control izquierdo: escenas guiadas con las animaciones de la clase, lugares y reloj de las animaciones.
+  const extra = await menuEstiba({ base: BASE, escena: datos, viva, raizEscena: escena });
   const config: ConfigRecorrido = {
     tarjetas: TARJETAS,
     inicio: { pos: inicio, yaw },
@@ -133,6 +137,7 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
     // El agua queda afuera: si alguien cae del muelle, vuelve al último lugar firme.
     colisionables: () => [viva.raiz, ...(suelo ? [suelo] : [])],
     velocidad: 2.6,
+    menu: extra.menu,
   };
 
   // ---------- Visor ----------
@@ -327,7 +332,7 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
     mostrarPortada({ titulo: 'Estiba', tarjetas: TARJETAS_PANTALLA, entrarVR: soportaVR ? () => void entrarVR() : undefined, textoPantalla: 'Explorar en la pantalla' });
   abrirPortada();
 
-  if (new URLSearchParams(location.search).get('debug') === '1') Object.assign(window, { __vr: { recorrido, escena, camara, rig, modoAPie, get caminata() { return caminata; } } });
+  if (new URLSearchParams(location.search).get('debug') === '1') Object.assign(window, { __vr: { recorrido, escena, camara, rig, modoAPie, extra, get caminata() { return caminata; } } });
 
   // ---------- Bucle ----------
   const reloj = new THREE.Clock();
@@ -336,11 +341,10 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
     if (renderer.xr.isPresenting) {
       const mandos = recorrido.actualizar(dt);
       if (!recorrido.enTutorial) {
+        // Solo el gatillo derecho selecciona (el izquierdo abre el menú), y no cuando apretó un botón del menú o la guía.
         const der = mandos.find((m) => m.mano === 'right');
-        const izq = mandos.find((m) => m.mano === 'left');
-        const mando = der?.flanco[BOTON.gatillo] ? 'right' : izq?.flanco[BOTON.gatillo] ? 'left' : null;
-        if (mando) {
-          const r = recorrido.rayo(mando);
+        if (der?.flanco[BOTON.gatillo] && !recorrido.gatilloConsumido) {
+          const r = recorrido.rayo('right');
           if (r) {
             rayo.set(r.origin, r.direction);
             rayo.far = 80;
@@ -350,6 +354,7 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
       }
     } else if (caminata) caminata.actualizar(dt);
     else orbita.update();
+    extra.cuadro(dt);
     renderer.render(escena, camara);
   });
 }
