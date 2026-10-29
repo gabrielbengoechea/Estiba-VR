@@ -207,7 +207,7 @@ const cache = new Map<string, Promise<Ficha | null>>();
 export function cargarFicha(id: string): Promise<Ficha | null> {
   let p = cache.get(id);
   if (!p) {
-    p = fetch(`/fichas/${encodeURIComponent(id)}.json`)
+    p = fetch(`${import.meta.env.BASE_URL}fichas/${encodeURIComponent(id)}.json`)
       .then((r) => (r.ok ? (r.json() as Promise<Ficha>) : null))
       .then((f) => (f && typeof f.titulo === 'string' && typeof f.texto === 'string' && Array.isArray(f.datos) ? f : null))
       .catch(() => null);

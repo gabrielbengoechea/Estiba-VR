@@ -22,6 +22,7 @@
     "qrcode": "1.5.4",
     "selfsigned": "2.4.1",
     "three": "0.169.0",
+    "three-mesh-bvh": "0.9.15",
     "troika-three-text": "0.52.0",
     "tsx": "4.19.2",
     "ws": "8.18.0"

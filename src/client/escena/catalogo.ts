@@ -27,7 +27,7 @@ function cargarModelo(tipo: string): () => Promise<THREE.Object3D> {
   return async () => {
     let p = promesas.get(tipo);
     if (!p) {
-      p = new GLTFLoader().loadAsync(`/modelos/${tipo}.glb`).then((gltf) => gltf.scene);
+      p = new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}modelos/${tipo}.glb`).then((gltf) => gltf.scene);
       promesas.set(tipo, p);
       p.catch(() => promesas.delete(tipo)); // un fallo de red no queda cacheado
     }

@@ -7,6 +7,8 @@ export default defineConfig(({ mode }) => {
   // `--mode http` o ESTIBA_HTTP=1 sirven por http solo para revisar en localhost (sigue siendo contexto seguro).
   const soloHttp = mode === 'http' || process.env.ESTIBA_HTTP === '1';
   return {
+    // GitHub Pages sirve la app en una subcarpeta (/Estiba-VR/): el workflow la pasa en ESTIBA_BASE.
+    base: process.env.ESTIBA_BASE ?? '/',
     plugins: soloHttp ? [] : [basicSsl()],
     server: {
       host: true,

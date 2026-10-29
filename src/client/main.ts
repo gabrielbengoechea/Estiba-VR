@@ -8,13 +8,22 @@ const params = new URLSearchParams(location.search);
 const sala = params.get('sala') ?? '';
 const rolParam = params.get('rol') as Rol | null;
 const rol: Rol = rolParam && ROLES.includes(rolParam) ? rolParam : 'alumno';
+// Exploración libre (sin servidor): ?rol=explorar, o la portada cuando no se indica sala ni rol.
+const explorar = params.get('rol') === 'explorar' || (!sala && !rolParam);
 
 instalarRegistroErrores(rol, sala);
 
 const app = document.getElementById('app');
 // ?rol=editor desde la portada: se pasa al editor conservando sala y pin.
 if (rolParam === 'editor') {
-  location.replace(`/editor.html${location.search}`);
+  location.replace(`${import.meta.env.BASE_URL}editor.html${location.search}`);
+} else if (app && explorar) {
+  import('./vistas/explorar')
+    .then((m) => m.iniciarExplorar(app))
+    .catch((e) => {
+      console.error('No cargó la exploración libre', e);
+      mostrarError(app, 'No pudimos iniciar la vista 3D. Probá recargar la página.');
+    });
 } else if (app) {
   app.dataset.sala = sala;
   if (rol === 'alumno') {
