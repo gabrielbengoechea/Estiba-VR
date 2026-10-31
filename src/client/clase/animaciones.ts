@@ -137,14 +137,14 @@ export function enganchePartes(tramos: Tramo[], tipo: Enganche, t: number, fuera
 // Convenciones de los modelos (tools/blender/gen_modelos.py, ya en los ejes de three.js):
 //   grúa STS: origen en el centro de la grúa sobre el cantil; el spreader cuelga del lado del agua en z local ≈ +23 y
 //     a y ≈ 20,1 (centro del contenedor colgado); las patas están en z = 0 y z = -30,5 (hacia tierra).
-//   tractor: la cabina está en el origen (mira hacia -x) y el contenedor va detrás, con centro en x = 8,4, y = 2,8.
+//   tractor: la cabina está en el origen (mira hacia -x) y el contenedor va detrás, sobre el chasis de 40' del kit, con centro en x = 9,68, y = 2,45.
 //   tren: el frente está en el origen y se extiende hacia +x; el contenedor del primer vagón tiene su centro en x = 25,7, y = 2,4.
 //   buque: popa en el origen, proa hacia +x (200 m), cubierta a y = 10.
 //   bloque de patio: esquina de la bahía 0 / fila 0 en el origen; las bahías crecen en +x y las filas hacia -z.
 //   grúa RTG: centrada en el origen (x, z) y apoyada en y = 0.
 // ---------------------------------------------------------------------------------------------------------------------
 export const STS_SPREADER_REPOSO: Vec3 = [0, 20.1, 23];
-export const TRACTOR_CONTENEDOR: Vec3 = [8.4, 2.8, 0];
+export const TRACTOR_CONTENEDOR: Vec3 = [9.68, 2.45, 0];
 export const TREN_CONTENEDOR: Vec3 = [25.7, 2.4, 0];
 /** Largo del tren (locomotora + 4 vagones) a lo largo de x, desde el frente. */
 export const TREN_LARGO = 77.2;
@@ -153,7 +153,7 @@ const TREN_RECORRIDO = 110;
 /** El buque llega desde el oeste (de proa) y desde el lado del agua. */
 const BUQUE_ENTRADA: Vec3 = [-240, 0, 25];
 /** Centro del contenedor apoyado en el tractor. */
-const ALTO_TRACTOR = 2.8;
+const ALTO_TRACTOR = TRACTOR_CONTENEDOR[1];
 /** Centro de un contenedor apoyado en el suelo. */
 const ALTO_SUELO = 1.3;
 const ALTO_ARRIBA_STS = 34;
@@ -411,7 +411,7 @@ export class Animador {
     this.tocados.set(id, this.marca);
   }
 
-  /** Tractor: llega bajo la grúa, lleva el contenedor y vuelve a su lugar (el contenedor va en x = 8,4 detrás de la cabina). */
+  /** Tractor: llega bajo la grúa, lleva el contenedor y vuelve a su lugar (el contenedor va en x = 9,68 detrás de la cabina). */
   private moverTractor(e: EstadoSala, id: string, t: number): void {
     const obj = this.viva.objeto(id);
     const mod = modulo(e.escena, id);

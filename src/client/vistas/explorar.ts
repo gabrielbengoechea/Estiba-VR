@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory.js';
 import type { Escena, Ficha, TipoModulo } from '../../shared/tipos';
-import { CERCA, LEJOS, configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
+import { CERCA, LEJOS, configurarRenderer, crearAmbiente, habilitarSombras, moduloDe, reflejosPBR } from '../escena/ambiente';
+import { ORIGEN_PRACTICA, PatioPractica, type Aviso } from '../estiba/practica';
 import { EscenaViva } from '../escena/construirEscena';
 import { cargarFicha } from '../clase/fichas';
 import { CaminataEscritorio } from '../vr/escritorio';
@@ -80,6 +81,7 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
 
   const escena = new THREE.Scene();
   crearAmbiente(escena);
+  reflejosPBR(renderer, escena);
   const viva = new EscenaViva();
   escena.add(viva.raiz);
   const sol = escena.children.find((o): o is THREE.DirectionalLight => o instanceof THREE.DirectionalLight);
@@ -109,6 +111,10 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
   };
   await viva.aplicar(datos);
   habilitarSombras(viva.raiz);
+  // Práctica de estiba: patio chico con contenedores que se toman y se apilan por los esquineros.
+  const practica = new PatioPractica();
+  const hayPractica = await practica.cargar().then(() => true, (e) => (console.warn('Práctica de estiba no disponible', e), false));
+  if (hayPractica) escena.add(practica.raiz);
   const tipoDe = new Map(datos.modulos.map((m) => [m.id, m.tipo]));
 
   type Vista = { pos: [number, number, number]; mira: [number, number, number] };
@@ -130,6 +136,12 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
   const suelo = escena.getObjectByName('suelo');
   // Menú del control izquierdo: escenas guiadas con las animaciones de la clase, lugares y reloj de las animaciones.
   const extra = await menuEstiba({ base: BASE, escena: datos, viva, raizEscena: escena });
+  if (hayPractica) {
+    extra.menu.lugares = [
+      { titulo: 'Práctica de estiba', resumen: 'Tomá contenedores con el agarre y apilalos por los esquineros', pos: new THREE.Vector3(ORIGEN_PRACTICA.x - 8, 0, ORIGEN_PRACTICA.z - 10), yaw: -Math.PI / 2 - 0.5 },
+      ...(extra.menu.lugares ?? []),
+    ];
+  }
   const config: ConfigRecorrido = {
     tarjetas: TARJETAS,
     inicio: { pos: inicio, yaw },
@@ -157,6 +169,58 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
   }
   const rayo = new THREE.Raycaster();
   const fichaAbierta = { id: '' };
+
+  // ---------- Práctica de estiba: colisiones dinámicas y avisos ----------
+  practica.alCambiar = () => {
+    recorrido.mundo.fijar('practica', [practica.colisiones]);
+    mundoAPie?.fijar('practica', [practica.colisiones]);
+  };
+  recorrido.mundo.fijar('practica', [practica.colisiones]); // (mundoAPie todavía no existe)
+  let ocultarAviso = 0;
+  practica.avisar = (a: Aviso) => {
+    if (renderer.xr.isPresenting) {
+      if (fichaAbierta.id) return;
+      recorrido.ficha.mostrar(camara, a.ok ? 'Encastrado' : 'No encastra', partir([a.texto]), 'Estiba');
+      clearTimeout(ocultarAviso);
+      ocultarAviso = window.setTimeout(() => { if (!fichaAbierta.id) recorrido.ficha.ocultar(); }, 2600);
+    } else {
+      avisoEstiba.textContent = a.texto;
+      avisoEstiba.style.borderColor = a.ok ? '#36d27a' : '#ff5a4f';
+      avisoEstiba.hidden = false;
+      clearTimeout(ocultarAviso);
+      ocultarAviso = window.setTimeout(() => (avisoEstiba.hidden = true), 3200);
+    }
+  };
+  /** Giro horizontal de un rayo (0 = mirando a -z), para que el contenedor gire con la mano. */
+  const giroDe = (d: THREE.Vector3) => Math.atan2(-d.x, -d.z);
+  let candidatoPrevio = '';
+  function vibrar(m: { fuente: XRInputSource } | undefined, fuerza: number, ms: number) {
+    const act = m?.fuente.gamepad?.hapticActuators?.[0] as { pulse?: (f: number, d: number) => Promise<boolean> } | undefined;
+    void act?.pulse?.(fuerza, ms)?.catch?.(() => undefined);
+  }
+  /** En el visor: agarre derecho para tomar y soltar, A para girar 90°. */
+  function estibaVR(mandos: ReturnType<typeof recorrido.actualizar>) {
+    if (!hayPractica || recorrido.enTutorial) return;
+    const der = mandos.find((m) => m.mano === 'right');
+    const r = recorrido.rayo('right');
+    if (!der || !r) return;
+    if (practica.enMano) {
+      if (der.flanco[BOTON.a]) practica.girar();
+      practica.mover(r, giroDe(r.direction));
+      const k = practica.estado().candidato;
+      const clave = k?.ok ? `${k.celda}${k.mitad}${k.nivel}` : '';
+      if (clave && clave !== candidatoPrevio) vibrar(der, 0.35, 25); // entra en la zona magnética
+      candidatoPrevio = clave;
+      if (!der.apretado[BOTON.grip]) {
+        const a = practica.soltar();
+        vibrar(der, a?.ok ? 0.9 : 0.3, a?.ok ? 60 : 30);
+        candidatoPrevio = '';
+      }
+    } else if (der.flanco[BOTON.grip]) {
+      const id = practica.apuntado(r, 40);
+      if (id && practica.tomar(id, giroDe(r.direction))) vibrar(der, 0.6, 30);
+    }
+  }
 
   async function mostrarFicha(idFicha: string | null) {
     fichaAbierta.id = idFicha ?? '';
@@ -224,7 +288,10 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
   let mundoAPie: MundoColision | null = null;
   function modoAPie(activo: boolean) {
     if (activo && !caminata) {
-      if (!mundoAPie) mundoAPie = new MundoColision().construir(config.colisionables(), { limites: config.limites });
+      if (!mundoAPie) {
+        mundoAPie = new MundoColision().construir(config.colisionables(), { limites: config.limites });
+        mundoAPie.fijar('practica', [practica.colisiones]);
+      }
       const j = new Jugador(mundoAPie);
       j.ubicar(inicio);
       caminata = new CaminataEscritorio(j, camara, renderer.domElement);
@@ -251,6 +318,44 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
     aviso.hidden = !activo;
   }
   addEventListener('keydown', (e) => e.key === 'Escape' && caminata && modoAPie(false));
+
+  // Práctica en la pantalla: arrastrar un contenedor de la práctica (R o click derecho lo gira 90°).
+  let arrastrando = false;
+  const rayoPantalla = (e: PointerEvent | MouseEvent) => {
+    const r = renderer.domElement.getBoundingClientRect();
+    rayo.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camara);
+    return rayo.ray;
+  };
+  renderer.domElement.addEventListener('pointerdown', (e) => {
+    if (!hayPractica || caminata || renderer.xr.isPresenting) return;
+    if (arrastrando) {
+      if (e.button === 2) { practica.girar(); practica.mover(rayoPantalla(e), 0); }
+      e.stopImmediatePropagation();
+      return;
+    }
+    if (e.button !== 0) return;
+    const id = practica.apuntado(rayoPantalla(e));
+    if (!id) return;
+    e.stopImmediatePropagation(); // que la órbita no gire mientras se arrastra
+    abajo = null;
+    if (!practica.tomar(id, 0)) return;
+    arrastrando = true;
+    orbita.enabled = false;
+    renderer.domElement.setPointerCapture(e.pointerId);
+    practica.mover(rayoPantalla(e), 0);
+  }, { capture: true });
+  renderer.domElement.addEventListener('pointermove', (e) => { if (arrastrando) practica.mover(rayoPantalla(e), 0); });
+  renderer.domElement.addEventListener('pointerup', (e) => {
+    if (!arrastrando || e.button !== 0) return;
+    e.stopImmediatePropagation();
+    arrastrando = false;
+    practica.soltar();
+    orbita.enabled = true;
+  }, { capture: true });
+  renderer.domElement.addEventListener('contextmenu', (e) => { if (arrastrando) e.preventDefault(); });
+  addEventListener('keydown', (e) => {
+    if (arrastrando && (e.key === 'r' || e.key === 'R')) { practica.girar(); practica.mover(rayo.ray, 0); }
+  });
 
   // Click (sin arrastrar) en una pieza: ficha
   let abajo: { x: number; y: number } | null = null;
@@ -288,6 +393,29 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
   const btnAyuda = boton('?', 'Ver el tutorial');
   btnAyuda.onclick = () => abrirPortada();
   barra.append(btnPie, btnAyuda);
+  if (hayPractica) {
+    const btnPractica = boton('Práctica de estiba', 'Ir al patio de práctica de estiba');
+    btnPractica.onclick = () => {
+      if (caminata) modoAPie(false);
+      // desde el sudoeste: el patio, los camiones y el cartel, sin patas de grúa en el medio
+      camara.position.set(ORIGEN_PRACTICA.x - 16, 22, ORIGEN_PRACTICA.z - 38);
+      orbita.target.set(ORIGEN_PRACTICA.x + 6, 0, ORIGEN_PRACTICA.z - 8);
+      orbita.update();
+      avisoEstiba.textContent = "Arrastrá un contenedor y soltalo en una celda, sobre otro o en un camión · R gira 90°";
+      avisoEstiba.style.borderColor = '#ffb547';
+      avisoEstiba.hidden = false;
+    };
+    const btnReiniciar = boton('↺', 'Reiniciar la práctica de estiba');
+    btnReiniciar.onclick = () => practica.reiniciar();
+    barra.insertBefore(btnReiniciar, btnPie);
+    barra.insertBefore(btnPractica, btnReiniciar);
+  }
+  const avisoEstiba = document.createElement('div');
+  avisoEstiba.hidden = true;
+  avisoEstiba.setAttribute('role', 'status');
+  avisoEstiba.style.cssText =
+    'position:fixed;left:50%;transform:translateX(-50%);top:max(64px,calc(env(safe-area-inset-top) + 56px));z-index:10;max-width:calc(100% - 32px);' +
+    'padding:10px 14px;border-radius:12px;background:rgba(11,22,36,.88);color:#f2f6fa;font:14px/1.35 system-ui,sans-serif;text-align:center;border:1px solid #ffb547';
 
   const aviso = document.createElement('div');
   aviso.hidden = true;
@@ -326,13 +454,13 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
     panelFicha.append(h, p, dl, cerrar);
     panelFicha.hidden = false;
   }
-  document.body.append(barra, aviso, panelFicha);
+  document.body.append(barra, aviso, panelFicha, avisoEstiba);
 
   const abrirPortada = () =>
     mostrarPortada({ titulo: 'Estiba', tarjetas: TARJETAS_PANTALLA, entrarVR: soportaVR ? () => void entrarVR() : undefined, textoPantalla: 'Explorar en la pantalla' });
   abrirPortada();
 
-  if (new URLSearchParams(location.search).get('debug') === '1') Object.assign(window, { __vr: { recorrido, escena, camara, rig, modoAPie, extra, get caminata() { return caminata; } } });
+  if (new URLSearchParams(location.search).get('debug') === '1') Object.assign(window, { __vr: { recorrido, escena, camara, rig, modoAPie, extra, practica, orbita, get caminata() { return caminata; } } });
 
   // ---------- Bucle ----------
   const reloj = new THREE.Clock();
@@ -340,7 +468,8 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
     const dt = Math.min(reloj.getDelta(), 0.1);
     if (renderer.xr.isPresenting) {
       const mandos = recorrido.actualizar(dt);
-      if (!recorrido.enTutorial) {
+      estibaVR(mandos);
+      if (!recorrido.enTutorial && !practica.enMano) {
         // Solo el gatillo derecho selecciona (el izquierdo abre el menú), y no cuando apretó un botón del menú o la guía.
         const der = mandos.find((m) => m.mano === 'right');
         if (der?.flanco[BOTON.gatillo] && !recorrido.gatilloConsumido) {
@@ -355,6 +484,7 @@ export async function iniciarExplorar(app: HTMLElement): Promise<void> {
     } else if (caminata) caminata.actualizar(dt);
     else orbita.update();
     extra.cuadro(dt);
+    practica.actualizar(dt);
     renderer.render(escena, camara);
   });
 }

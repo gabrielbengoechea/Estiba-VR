@@ -6,7 +6,7 @@ import QRCode from 'qrcode';
 import type { Participante } from '../../shared/protocolo';
 import type { EstadoSala, Vec3 } from '../../shared/tipos';
 import { ConexionSala } from '../red';
-import { CERCA, LEJOS, configurarRenderer, crearAmbiente, habilitarSombras, moduloDe } from '../escena/ambiente';
+import { CERCA, LEJOS, configurarRenderer, crearAmbiente, habilitarSombras, moduloDe, reflejosPBR } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
 import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
@@ -67,6 +67,7 @@ export class VistaEscritorio {
     this.renderer.domElement.style.cssText = 'display:block;width:100%;height:100%';
 
     crearAmbiente(this.escena);
+    reflejosPBR(this.renderer, this.escena);
     this.escena.add(this.viva.raiz);
     this.fichas = new GestorFichas(this.escena, this.viva, this.camara);
     this.animador = new Animador(this.escena, this.viva, () => this.conexion.reloj.ahoraServidor(), () => this.fichas.explotando);

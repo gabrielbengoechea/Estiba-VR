@@ -1,7 +1,7 @@
 // Vista del alumno: entrada + vista doble sobre la escena de la sala.
 import * as THREE from 'three';
 import type { EstadoSala } from '../../shared/tipos';
-import { CERCA, LEJOS, configurarRenderer, crearAmbiente, habilitarSombras } from '../escena/ambiente';
+import { CERCA, LEJOS, configurarRenderer, crearAmbiente, habilitarSombras, reflejosPBR } from '../escena/ambiente';
 import { EscenaViva } from '../escena/construirEscena';
 import { Animador } from '../clase/animaciones';
 import { GestorFichas } from '../clase/fichas';
@@ -170,6 +170,7 @@ async function iniciarVistaDoble(app: HTMLElement): Promise<void> {
 
   const escena = new THREE.Scene();
   crearAmbiente(escena, { mapaSombra: 1024 }); // celular: mapa de sombra más chico
+  reflejosPBR(renderer, escena);
   // La sombra se calcula una vez por cuadro (no una por ojo); ver el bucle.
   renderer.shadowMap.autoUpdate = false;
   const viva = new EscenaViva();

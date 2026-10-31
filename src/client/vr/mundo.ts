@@ -116,6 +116,16 @@ export class MundoColision {
     return this
   }
 
+  /** Piezas que cambian (los contenedores de la práctica de estiba): se reemplazan por clave. */
+  dinamicos = new Map<string, MeshBVH>()
+
+  /** Reemplaza (o quita, con una lista vacía) un grupo dinámico de objetos chicos. */
+  fijar(clave: string, raices: THREE.Object3D[]) {
+    const { bvh, n } = armarBVH(raices, {})
+    if (n > 0) this.dinamicos.set(clave, bvh)
+    else this.dinamicos.delete(clave)
+  }
+
   /** Suma objetos al mundo sin rehacer lo que ya estaba (barato para piezas chicas). */
   agregar(raices: THREE.Object3D[]) {
     const { bvh, n } = armarBVH(raices, {})
@@ -127,6 +137,7 @@ export class MundoColision {
     l.length = 0
     if (this.bvh && this.triangulos > 0) l.push(this.bvh)
     for (const e of this.extras) l.push(e)
+    for (const e of this.dinamicos.values()) l.push(e)
     return l
   }
 

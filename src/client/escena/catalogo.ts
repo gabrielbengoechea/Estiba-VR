@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { TipoModulo } from '../../shared/tipos';
+import { bloquePatioKit, buqueKit, gruaRtgKit, gruaStsKit, tractorKit } from './kitModulos';
 import { bloquePatio, muelle, via, puerta, deposito, M_POR_DEFECTO, MUELLE_FONDO, VIA_ANCHO } from './parametricos';
 
 export interface ParamEditable { clave: string; etiqueta: string; min: number; max: number; paso: number }
@@ -37,12 +38,16 @@ function cargarModelo(tipo: string): () => Promise<THREE.Object3D> {
 
 const celdas = (metros: number, m: number) => Math.max(1, Math.ceil(metros / m));
 
-function blender(nombre: string, tipo: TipoModulo, ancho: number, fondo: number): EntradaCatalogo {
+/**
+ * Modelo de Blender: el del kit portuario (`kit`) si está, o el .glb sencillo de tools/blender/gen_modelos.py si el
+ * kit no carga (sin red, archivo faltante). Los dos usan el mismo marco y los mismos nombres de pieza.
+ */
+function blender(nombre: string, tipo: TipoModulo, ancho: number, fondo: number, kit?: () => Promise<THREE.Object3D>): EntradaCatalogo {
   const cargar = cargarModelo(tipo);
   return {
     nombre,
     huella: (_p, m = M_POR_DEFECTO) => [celdas(ancho, m), celdas(fondo, m)],
-    crear: () => cargar(),
+    crear: () => (kit ? kit().catch((e) => (console.warn(`Kit portuario no disponible para ${tipo}`, e), cargar())) : cargar()),
     paramsEditables: [],
   };
 }
@@ -54,13 +59,13 @@ export const catalogo: Record<TipoModulo, EntradaCatalogo> = {
     crear: async (p, m) => muelle(p, m),
     paramsEditables: [{ clave: 'largo', etiqueta: 'Largo (celdas)', min: 5, max: 80, paso: 1 }],
   },
-  'grua-sts': blender('Grúa STS', 'grua-sts', 30, 20),
-  buque: blender('Buque', 'buque', 200, 32),
-  tractor: blender('Tractor de terminal', 'tractor', 7, 2.5),
+  'grua-sts': blender('Grúa STS', 'grua-sts', 30, 20, gruaStsKit),
+  buque: blender('Buque', 'buque', 200, 32, buqueKit),
+  tractor: blender('Tractor de terminal', 'tractor', 7, 2.5, () => tractorKit()),
   'bloque-patio': {
     nombre: 'Bloque de patio',
     huella: (p, m = M_POR_DEFECTO) => [celdas((p?.bahias ?? 20) * 6.56, m), celdas((p?.filas ?? 6) * 2.8, m)],
-    crear: async (p) => bloquePatio(p),
+    crear: (p) => bloquePatioKit(p).catch(() => bloquePatio(p)),
     paramsEditables: [
       { clave: 'filas', etiqueta: 'Filas', min: 1, max: 12, paso: 1 },
       { clave: 'bahias', etiqueta: 'Bahías', min: 1, max: 30, paso: 1 },
@@ -69,7 +74,7 @@ export const catalogo: Record<TipoModulo, EntradaCatalogo> = {
       { clave: 'semilla', etiqueta: 'Semilla', min: 1, max: 999, paso: 1 },
     ],
   },
-  'grua-rtg': blender('Grúa RTG', 'grua-rtg', 14, 25),
+  'grua-rtg': blender('Grúa RTG', 'grua-rtg', 14, 25, gruaRtgKit),
   puerta: {
     nombre: 'Puerta de acceso',
     huella: (p, m = M_POR_DEFECTO) => [celdas((p?.carriles ?? 4) * 3.5 + 1.2, m), celdas(20, m)],

@@ -21,6 +21,45 @@ Para pruebas: `?debug=1` deja el recorrido y la escena en `window.__vr`.
 
 El código del recorrido está en `src/client/vr/` (tutorial, mundo de colisión, jugador, locomoción) y tiene sus pruebas en `fisica.test.ts`.
 
+### Práctica de estiba (exploración libre)
+
+Al sudeste del bloque A hay un patio de práctica: 6 celdas de 40' pintadas (A1…C2), dos camiones con semirremolque esqueleto y 11 contenedores (20', 40' y 40' HC).
+
+- **En el visor:**
+  - Apuntá a un contenedor con el control derecho y **mantené el agarre (grip)** para tomarlo; con **A** lo girás 90°.
+  - Al soltarlo, encastra en la celda, en otro contenedor o en la cama de un camión.
+  - El patio está en el menú, en **Lugares → Práctica de estiba**.
+- **En la pantalla:** botón **Práctica de estiba**. Arrastrá un contenedor con el mouse; **R** o el click derecho lo giran 90° y **↺** deja todo como al principio.
+
+**Zona magnética en los esquineros.** Mientras lo llevás, el contenedor busca el lugar más cercano donde trabarían sus esquineros (ISO 1161):
+
+- **Verde:** encastra. Aparece la silueta con los cuatro twistlocks, el contenedor flota justo encima ya alineado y el control vibra.
+- **Roja:** no encastra, y el aviso dice por qué. Por ejemplo:
+  - un 20' sobre un 40', que no tiene esquineros en el medio;
+  - un 40' sobre un solo 20';
+  - la pila llena (5 niveles);
+  - el camión, que lleva un solo nivel;
+  - una pila que tiene otro contenedor encima.
+
+**Sin física.** El lugar de cada contenedor es discreto (celda, nivel, mitad A/B para los 20') y lo decide `src/shared/apilado.ts`. La pose sale siempre de la celda y de las alturas de los niveles de abajo. Por eso:
+
+- Una pila de seis no acumula error ni tiembla: las pruebas levantan y apoyan mil veces y la pose queda igual bit a bit.
+- Lo que va en un camión sigue a su montaje (`Mount_40`, `Mount_20A/B` del kit) aunque el camión se mueva.
+
+Las cajas de colisión de la práctica se rehacen en un BVH chico aparte en cada cambio, así la caminata choca con las pilas nuevas. El código está en `src/client/estiba/practica.ts` y las pruebas en `apilado.test.ts` y `practica.test.ts`.
+
+### Modelos: kit portuario
+
+Las grúas STS y RTG, el buque, el tractor de terminal, los bloques del patio y los camiones salen del kit portuario de Blender de Logística 3D (`tools/blender/kit_portuario`):
+
+- materiales PBR con un atlas por familia;
+- LOD por distancia (THREE.LOD);
+- colisiones convexas `UCX_`: la caminata usa estas y no la malla de render.
+
+Los paquetes están en `public/modelos/kit/`, con texturas WebP de 1024² para que entren en la memoria del Quest 2. Se cargan en `src/client/escena/kit.ts` y se adaptan en `kitModulos.ts` al marco y a los nombres de pieza de los modelos anteriores (`carro`, `spreader`, `pluma`, `contenedor`), así las animaciones de la clase y la vista explotada siguen andando.
+
+Si el kit no carga, cada módulo vuelve al `.glb` sencillo de `tools/blender/gen_modelos.py`.
+
 ## Desarrollo local
 
 Requiere Node 22.

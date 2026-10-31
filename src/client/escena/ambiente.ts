@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 /** Nivel del agua respecto del tope del muelle (y = 0). */
 export const NIVEL_AGUA = -1.4;
@@ -74,6 +75,19 @@ function texturaCuadricula(repX: number, repY: number): THREE.CanvasTexture | nu
   t.repeat.set(repX, repY);
   t.anisotropy = 4;
   return t;
+}
+
+/**
+ * Reflejos para los materiales PBR del kit (acero pintado, vidrio, cromo): un entorno de estudio filtrado (PMREM),
+ * tenue para no lavar los colores. Sin esto el metal se ve negro. Se llama una vez por vista, con su renderer.
+ */
+export function reflejosPBR(renderer: THREE.WebGLRenderer, escena: THREE.Scene, intensidad = 0.45): void {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const sala = new RoomEnvironment();
+  escena.environment = pmrem.fromScene(sala, 0.04).texture;
+  escena.environmentIntensity = intensidad;
+  sala.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).geometry.dispose(); });
+  pmrem.dispose();
 }
 
 /** Hace que todo lo que cuelga de `raiz` proyecte y reciba sombras. Se llama después de cada `aplicar`. */

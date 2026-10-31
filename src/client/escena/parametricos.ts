@@ -8,11 +8,11 @@ export const M_POR_DEFECTO = 10;
 export const MUELLE_FONDO = 20;
 export const VIA_ANCHO = 3.8;
 
-const PASO_FILA = 2.8;
-const PASO_BAHIA = 6.56;
-const LARGO_20 = 6.06;
-const ANCHO_CONT = 2.44;
-const ALTO_CONT = 2.59;
+export const PASO_FILA = 2.8;
+export const PASO_BAHIA = 6.56;
+export const LARGO_20 = 6.06;
+export const ANCHO_CONT = 2.44;
+export const ALTO_CONT = 2.59;
 
 export interface ParamsPatio {
   filas?: number;
@@ -43,10 +43,10 @@ function colorPonderado(r: () => number): number {
   return pesos.length - 1;
 }
 
-interface Pos { fila: number; bahia: number; nivel: number; color: number }
+export interface Pos { fila: number; bahia: number; nivel: number; color: number }
 
 /** Única fuente de verdad: la geometría y el conteo salen de aquí. */
-function disponerContenedores(params: ParamsPatio): Pos[] {
+export function disponerContenedores(params: ParamsPatio): Pos[] {
   const { filas, bahias, altura, ocupacion, semilla } = { ...PATIO_DEF, ...params };
   const r = mulberry32(Math.round(semilla));
   const out: Pos[] = [];
